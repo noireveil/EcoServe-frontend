@@ -3,13 +3,13 @@
 ### Tahap 1: Inisialisasi Backend dan Database
 Sistem ini menggunakan arsitektur *containerized* melalui Docker Compose untuk memastikan konsistensi *environment* dan mempermudah pengujian tanpa memerlukan konfigurasi infrastruktur manual.
 
-**[Tautan Repositori Backend: github.com/noireveil/select-backend](https://github.com/noireveil/select-backend)**
+**[Tautan Repositori Backend: github.com/noireveil/EcoServe-backend](https://github.com/noireveil/EcoServe-backend)**
 
 1. Pastikan *container engine* (Docker Desktop / Podman) telah aktif di sistem Anda.
 2. Lakukan *clone* pada repositori backend dan jalankan *container*:
    ```bash
-   git clone https://github.com/noireveil/select-backend.git
-   cd select-backend
+   git clone https://github.com/noireveil/EcoServe-backend.git
+   cd EcoServe-backend
    docker compose up -d --build
    ```
 *Catatan: API dan Database akan berjalan di latar belakang. Endpoint API dapat diakses pada `http://localhost:3000`.*
@@ -18,8 +18,8 @@ Sistem ini menggunakan arsitektur *containerized* melalui Docker Compose untuk m
 1. Buka *instance* terminal baru dan pastikan Node.js telah terinstal.
 2. Lakukan *clone* pada repositori frontend (repositori ini), instal dependensi, dan jalankan *development server*:
    ```bash
-   git clone https://github.com/noireveil/select-frontend.git
-   cd select-frontend
+   git clone https://github.com/noireveil/EcoServe-frontend.git
+   cd EcoServe-frontend
    npm install
    npm run dev
    ```
