@@ -10,11 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
@@ -23,14 +18,17 @@ type Role = "consumer" | "technician"
 export function AuthForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   // Form states
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
   const [fullName, setFullName] = useState("")
   const [role, setRole] = useState<Role>("consumer")
+
+  // Custom OTP States
   const [otp, setOtp] = useState("")
-  
+  const [otpArray, setOtpArray] = useState<string[]>(Array(6).fill(""))
+
   // UI states
   const [showOtpInput, setShowOtpInput] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -44,6 +42,59 @@ export function AuthForm() {
       setActiveTab("register")
     }
   }, [searchParams])
+
+  // Sync otpArray dengan state otp utama
+  useEffect(() => {
+    setOtp(otpArray.join(""))
+  }, [otpArray])
+
+  // --- CUSTOM OTP HANDLERS (ANTI-BUG SHADCN) ---
+  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const value = e.target.value
+    if (!/^\d*$/.test(value)) return // Hanya boleh angka
+
+    const newOtpArray = [...otpArray]
+    newOtpArray[index] = value.slice(-1) // Ambil karakter terakhir
+    setOtpArray(newOtpArray)
+
+    // Otomatis geser ke kotak selanjutnya
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`${activeTab}-otp-slot-${index + 1}`)
+      nextInput?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    // Otomatis mundur dan hapus jika menekan backspace
+    if (e.key === "Backspace" && !otpArray[index] && index > 0) {
+      const prevInput = document.getElementById(`${activeTab}-otp-slot-${index - 1}`)
+      if (prevInput) {
+        prevInput.focus()
+        const newOtpArray = [...otpArray]
+        newOtpArray[index - 1] = ""
+        setOtpArray(newOtpArray)
+      }
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    // Ambil teks dari clipboard, hapus selain angka, dan potong maksimal 6 digit
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
+    if (pastedData) {
+      const newOtpArray = [...otpArray]
+      for (let i = 0; i < pastedData.length; i++) {
+        newOtpArray[i] = pastedData[i]
+      }
+      setOtpArray(newOtpArray)
+
+      // Fokus ke kotak terakhir yang terisi
+      const focusIndex = Math.min(pastedData.length, 5)
+      const focusInput = document.getElementById(`${activeTab}-otp-slot-${focusIndex}`)
+      focusInput?.focus()
+    }
+  }
+  // ---------------------------------------------
 
   const handleSendOtp = async () => {
     if (!email) {
@@ -66,15 +117,15 @@ export function AuthForm() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            email,
-            full_name: fullName || email.split("@")[0],
+            email: email.trim(),
+            full_name: fullName.trim() || email.split("@")[0],
           }),
         }
       )
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.message || "Failed to send OTP")
+        throw new Error(data.error || data.message || "Failed to send OTP")
       }
 
       setShowOtpInput(true)
@@ -103,18 +154,18 @@ export function AuthForm() {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            email,
-            code: otp,
+            email: email.trim(),
+            code: otp, // Menggunakan OTP bersih dari custom component
           }),
         }
       )
 
       if (!verifyResponse.ok) {
         const data = await verifyResponse.json()
-        throw new Error(data.message || "Invalid OTP")
+        throw new Error(data.error || data.message || "Invalid OTP")
       }
 
-      // Step 2: ambil profile user untuk dapat role
+      // Step 2: ambil profile user untuk dapat role (Tetap dipertahankan)
       const meResponse = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/me`,
         {
@@ -128,10 +179,11 @@ export function AuthForm() {
       }
 
       const userData = await meResponse.json()
-      const userRole = userData.role
+      // Fallback property handling for Golang Backend
+      const userRole = userData.data?.Role || userData.data?.role || userData.role
 
       // Step 3: redirect berdasarkan role
-      if (userRole === "technician") {
+      if (userRole === "technician" || (activeTab === "register" && role === "technician")) {
         router.push("/technician/dashboard")
       } else {
         router.push("/consumer/dashboard")
@@ -147,6 +199,7 @@ export function AuthForm() {
   const resetForm = () => {
     setShowOtpInput(false)
     setOtp("")
+    setOtpArray(Array(6).fill(""))
     setError("")
   }
 
@@ -159,9 +212,9 @@ export function AuthForm() {
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
       {/* Background pattern */}
       <div className="absolute inset-0">
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
-        
+        {/* Gradient overlay - Fixed Tailwind Warning */}
+        <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5" />
+
         {/* Circuit pattern */}
         <svg
           className="absolute inset-0 h-full w-full opacity-[0.03]"
@@ -318,28 +371,33 @@ export function AuthForm() {
                       className="space-y-4"
                     >
                       <div className="space-y-2">
-                        <Label>Enter OTP sent to {email}</Label>
-                        <div className="flex justify-center">
-                          <InputOTP
-                            maxLength={6}
-                            value={otp}
-                            onChange={(value) => setOtp(value)}
-                          >
-                            <InputOTPGroup>
-                              <InputOTPSlot index={0} className="bg-secondary/50" />
-                              <InputOTPSlot index={1} className="bg-secondary/50" />
-                              <InputOTPSlot index={2} className="bg-secondary/50" />
-                              <InputOTPSlot index={3} className="bg-secondary/50" />
-                              <InputOTPSlot index={4} className="bg-secondary/50" />
-                              <InputOTPSlot index={5} className="bg-secondary/50" />
-                            </InputOTPGroup>
-                          </InputOTP>
+                        <Label className="block text-center">Enter OTP sent to {email}</Label>
+
+                        {/* CUSTOM OTP COMPONENT */}
+                        <div className="mt-2 flex justify-center gap-2">
+                          {[0, 1, 2, 3, 4, 5].map((index) => (
+                            <input
+                              key={index}
+                              id={`login-otp-slot-${index}`}
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={1}
+                              value={otpArray[index]}
+                              onChange={(e) => handleOtpChange(e, index)}
+                              onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                              onPaste={handleOtpPaste}
+                              className="h-12 w-10 rounded-md border border-input bg-secondary/50 text-center text-lg font-semibold outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary"
+                              autoComplete="off"
+                            />
+                          ))}
                         </div>
+                        {/* END CUSTOM OTP */}
+
                       </div>
                       <Button
                         onClick={handleVerifyOtp}
                         disabled={isLoading}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         {isLoading ? (
                           <>
@@ -352,7 +410,7 @@ export function AuthForm() {
                       </Button>
                       <button
                         onClick={resetForm}
-                        className="w-full text-sm text-muted-foreground hover:text-foreground"
+                        className="mt-2 w-full text-sm text-muted-foreground hover:text-foreground"
                       >
                         Use a different email
                       </button>
@@ -505,28 +563,33 @@ export function AuthForm() {
                       className="space-y-4"
                     >
                       <div className="space-y-2">
-                        <Label>Enter OTP sent to {email}</Label>
-                        <div className="flex justify-center">
-                          <InputOTP
-                            maxLength={6}
-                            value={otp}
-                            onChange={(value) => setOtp(value)}
-                          >
-                            <InputOTPGroup>
-                              <InputOTPSlot index={0} className="bg-secondary/50" />
-                              <InputOTPSlot index={1} className="bg-secondary/50" />
-                              <InputOTPSlot index={2} className="bg-secondary/50" />
-                              <InputOTPSlot index={3} className="bg-secondary/50" />
-                              <InputOTPSlot index={4} className="bg-secondary/50" />
-                              <InputOTPSlot index={5} className="bg-secondary/50" />
-                            </InputOTPGroup>
-                          </InputOTP>
+                        <Label className="block text-center">Enter OTP sent to {email}</Label>
+
+                        {/* CUSTOM OTP COMPONENT */}
+                        <div className="mt-2 flex justify-center gap-2">
+                          {[0, 1, 2, 3, 4, 5].map((index) => (
+                            <input
+                              key={index}
+                              id={`register-otp-slot-${index}`}
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={1}
+                              value={otpArray[index]}
+                              onChange={(e) => handleOtpChange(e, index)}
+                              onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                              onPaste={handleOtpPaste}
+                              className="h-12 w-10 rounded-md border border-input bg-secondary/50 text-center text-lg font-semibold outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary"
+                              autoComplete="off"
+                            />
+                          ))}
                         </div>
+                        {/* END CUSTOM OTP */}
+
                       </div>
                       <Button
                         onClick={handleVerifyOtp}
                         disabled={isLoading}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         {isLoading ? (
                           <>
@@ -539,7 +602,7 @@ export function AuthForm() {
                       </Button>
                       <button
                         onClick={resetForm}
-                        className="w-full text-sm text-muted-foreground hover:text-foreground"
+                        className="mt-2 w-full text-sm text-muted-foreground hover:text-foreground"
                       >
                         Use a different email
                       </button>

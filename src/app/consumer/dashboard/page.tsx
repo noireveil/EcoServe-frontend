@@ -1,6 +1,8 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
+import axios from "axios"
 import {
   Bell,
   Leaf,
@@ -55,6 +57,42 @@ const recentRepairs = [
 ]
 
 export default function ConsumerDashboard() {
+  const [firstName, setFirstName] = useState("...")
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/users/me`,
+          { withCredentials: true }
+        )
+
+        const user = response.data.data
+        const fullName = user?.FullName || user?.fullName || "Pengguna"
+
+        // --- LOGIKA PINTAR NAMA INDONESIA ---
+        const words = fullName.trim().split(/\s+/)
+        let nickname = words[0] // Default: ambil kata pertama
+
+        // Daftar kata depan yang biasanya di-skip untuk panggilan
+        const skippedNames = ["muhammad", "mohammad", "m.", "m", "abdul", "siti", "ahmad", "raden", "tb"]
+
+        // Jika kata pertama ada di daftar skip dan dia punya kata kedua, ambil kata kedua
+        if (words.length > 1 && skippedNames.includes(words[0].toLowerCase())) {
+          nickname = words[1]
+        }
+        // ------------------------------------
+
+        setFirstName(nickname)
+      } catch (error) {
+        console.error("Gagal mengambil profil:", error)
+        setFirstName("Pengguna")
+      }
+    }
+
+    fetchUserProfile()
+  }, [])
+
   return (
     <div className="relative min-h-screen bg-background pb-20">
       {/* Main Content */}
@@ -63,7 +101,7 @@ export default function ConsumerDashboard() {
         <header className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground">
-              Hello, Faris 👋
+              Hello, {firstName} 👋
             </h1>
             <p className="text-sm text-muted-foreground">Welcome back</p>
           </div>
@@ -88,18 +126,18 @@ export default function ConsumerDashboard() {
               <rect width="100" height="100" fill="url(#leafPattern)" />
             </svg>
           </div>
-          
+
           <div className="relative z-10">
             <div className="mb-1 flex items-center gap-2">
               <Leaf className="h-4 w-4 text-emerald-200" />
               <span className="text-sm font-medium text-emerald-100">Your Eco Impact</span>
             </div>
-            
+
             <div className="mb-4">
               <span className="text-4xl font-bold text-white">12.4 kg</span>
               <p className="text-sm text-emerald-100">CO₂ Avoided</p>
             </div>
-            
+
             <div className="flex gap-6">
               <div className="flex items-center gap-2">
                 <div className="rounded-full bg-white/20 p-1.5">
@@ -120,7 +158,7 @@ export default function ConsumerDashboard() {
                 </div>
               </div>
             </div>
-            
+
             {/* Progress bar */}
             <div className="mt-4">
               <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
@@ -169,7 +207,7 @@ export default function ConsumerDashboard() {
                 In Progress
               </span>
             </div>
-            
+
             <div className="mb-3 flex items-center gap-3">
               <div className="rounded-lg bg-secondary p-2">
                 <Smartphone className="h-5 w-5 text-foreground" />
@@ -179,7 +217,7 @@ export default function ConsumerDashboard() {
                 <p className="text-sm text-muted-foreground">Screen repair</p>
               </div>
             </div>
-            
+
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
@@ -195,7 +233,7 @@ export default function ConsumerDashboard() {
               </div>
               <span className="text-sm text-muted-foreground">60%</span>
             </div>
-            
+
             {/* Progress bar */}
             <div className="h-2 overflow-hidden rounded-full bg-secondary">
               <motion.div
@@ -217,7 +255,7 @@ export default function ConsumerDashboard() {
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          
+
           <div className="space-y-3">
             {recentRepairs.map((repair, index) => (
               <motion.div
