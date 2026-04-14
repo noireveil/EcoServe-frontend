@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
-type Role = "consumer" | "technician"
+type Role = "customer" | "technician"
 
 export function AuthForm() {
   const router = useRouter()
@@ -23,7 +23,7 @@ export function AuthForm() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
   const [fullName, setFullName] = useState("")
-  const [role, setRole] = useState<Role>("consumer")
+  const [role, setRole] = useState<Role>("customer")
 
   // Custom OTP States
   const [otp, setOtp] = useState("")
@@ -137,7 +137,9 @@ export function AuthForm() {
   }
 
   const handleVerifyOtp = async () => {
-    if (otp.length !== 6) {
+    const currentOtp = otpArray.join("")
+
+    if (currentOtp.length !== 6) {
       setError("Please enter a valid 6-digit OTP")
       return
     }
@@ -155,7 +157,7 @@ export function AuthForm() {
           credentials: "include",
           body: JSON.stringify({
             email: email.trim(),
-            code: otp, // Menggunakan OTP bersih dari custom component
+            code: otp,
           }),
         }
       )
@@ -165,7 +167,8 @@ export function AuthForm() {
         throw new Error(data.error || data.message || "Invalid OTP")
       }
 
-      // Step 2: ambil profile user untuk dapat role (Tetap dipertahankan)
+
+      // Step 2: ambil profile user untuk dapat role
       const meResponse = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/me`,
         {
@@ -179,17 +182,32 @@ export function AuthForm() {
       }
 
       const userData = await meResponse.json()
-      // Fallback property handling for Golang Backend
-      const userRole = userData.data?.Role || userData.data?.role || userData.role
 
-      // Step 3: redirect berdasarkan role
-      if (userRole === "technician" || (activeTab === "register" && role === "technician")) {
+      const user = userData.data?.data || userData.data || userData
+      const userRole = user?.Role || user?.role
+      
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const jwtCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('jwt='))
+        ?.split('=')[1]
+
+      if (jwtCookie) {
+        document.cookie = `jwt=${jwtCookie}; path=/; max-age=86400`
+      }
+
+      console.log("All cookies:", document.cookie)
+      console.log("JWT cookie:", document.cookie.split('; ').find(row => row.startsWith('jwt=')))
+
+      if (userRole === "technician") {
         router.push("/technician/dashboard")
       } else {
         router.push("/consumer/dashboard")
       }
 
     } catch (err: any) {
+      console.log("Error caught:", err)
       setError(err.message || "Invalid OTP. Please try again.")
     } finally {
       setIsLoading(false)
@@ -488,10 +506,10 @@ export function AuthForm() {
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
-                            onClick={() => setRole("consumer")}
+                            onClick={() => setRole("customer")}
                             className={cn(
                               "relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
-                              role === "consumer"
+                              role === "customer"
                                 ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
                                 : "border-border bg-secondary/30 hover:border-primary/50"
                             )}
@@ -499,13 +517,13 @@ export function AuthForm() {
                             <Smartphone
                               className={cn(
                                 "h-8 w-8",
-                                role === "consumer" ? "text-primary" : "text-muted-foreground"
+                                role === "customer" ? "text-primary" : "text-muted-foreground"
                               )}
                             />
                             <span
                               className={cn(
                                 "text-sm font-medium",
-                                role === "consumer" ? "text-primary" : "text-muted-foreground"
+                                role === "customer" ? "text-primary" : "text-muted-foreground"
                               )}
                             >
                               I need repairs

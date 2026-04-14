@@ -3,7 +3,7 @@ export interface User {
   id: string
   full_name: string
   email: string
-  role_type: 'consumer' | 'technician' | 'admin'
+  role_type: 'customer' | 'technician' | 'admin'
   last_location?: {
     lat: number
     lng: number
@@ -32,7 +32,7 @@ export interface DigitalProductPassport {
 // Repair Order
 export interface RepairOrder {
   id: string
-  consumer_id: string
+  customer_id: string
   technician_id?: string
   device_id: string
   issue_description: string
@@ -70,7 +70,7 @@ export interface Location {
 export interface ServiceRequest {
   id: string
   repair_order: RepairOrder
-  consumer: User
+  customer: User
   technician?: User
   device: DigitalProductPassport
   location: Location

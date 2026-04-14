@@ -1,4 +1,4 @@
-export default function ConsumerLayout({
+export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode

@@ -22,7 +22,6 @@ export function DualCtaSection() {
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Consumer Card */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
