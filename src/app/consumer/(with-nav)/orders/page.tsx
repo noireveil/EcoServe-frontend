@@ -8,11 +8,15 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   AlertCircle,
+  MessageCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ToastNotification } from "@/components/ui/toast-notification"
+import { useToast } from "@/hooks/useToast"
+import { ChatDrawer } from "@/components/ui/chat-drawer"
 import { cn } from "@/lib/utils"
 
 const steps = [
@@ -33,12 +37,13 @@ const getStepNumber = (status: string): number => {
   }
 }
 
-function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelConfirm, onCancel }: {
+function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelConfirm, onCancel, onChat }: {
   order: any
   onTrackMap: (order: any) => void
   showCancelConfirm: string | null
   setShowCancelConfirm: (id: string | null) => void
   onCancel: (orderId: string) => void
+  onChat?: () => void
 }) {
   return (
     <motion.div
@@ -172,6 +177,15 @@ function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelCo
             >
               Track on Map
             </Button>
+          )}
+          {(order.Status === "ACCEPTED" || order.Status === "IN_PROGRESS") && (
+            <button
+              onClick={() => onChat?.()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              Chat
+            </button>
           )}
         </div>
       </Card>
@@ -325,7 +339,7 @@ function EmptyState() {
 }
 
 export default function OrdersPage() {
-  const { isLoading: authLoading } = useAuth("customer")
+  const { user, isLoading: authLoading } = useAuth("customer")
   const router = useRouter()
   const [orders, setOrders] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -335,6 +349,8 @@ export default function OrdersPage() {
   const [rating, setRating] = useState<number>(0)
   const [comment, setComment] = useState("")
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null)
+  const { toasts, removeToast, toast } = useToast()
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -385,12 +401,15 @@ export default function OrdersPage() {
           setOrders(data.data || [])
         }
         setShowCancelConfirm(null)
+        toast.success("Order cancelled", "Your order has been cancelled.")
       } else {
         const data = await response.json()
         console.error("Failed to cancel:", data)
+        toast.error("Failed to cancel", "Please try again.")
       }
     } catch (err) {
       console.error("Cancel error:", err)
+      toast.error("Failed to cancel", "Please try again.")
     }
   }
 
@@ -414,6 +433,7 @@ export default function OrdersPage() {
         setReviewingId(null)
         setRating(0)
         setComment("")
+        toast.success("Review submitted!", "Thank you for your feedback.")
 
         const ordersResponse = await apiFetch("/api/orders/")
         if (ordersResponse.ok) {
@@ -421,9 +441,12 @@ export default function OrdersPage() {
           console.log("Orders after review:", JSON.stringify(data.data, null, 2))
           setOrders(data.data || [])
         }
+      } else {
+        toast.error("Failed to submit review", "Please try again.")
       }
     } catch (err) {
       console.error("Review error:", err)
+      toast.error("Failed to submit review", "Please try again.")
     } finally {
       setIsSubmittingReview(false)
     }
@@ -458,10 +481,11 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-10">
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
       <div className="max-w-5xl mx-auto">
         {/* Sticky header */}
-        <div className="sticky top-0 md:top-16 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 pt-4 pb-2">
+        <div className="sticky top-0 md:top-16 z-10 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 pt-4 pb-2">
           <h1 className="text-xl font-bold">My Orders</h1>
 
           {/* Tabs */}
@@ -503,7 +527,7 @@ export default function OrdersPage() {
         </div>
 
         {/* Tab content */}
-        <div className="px-4 mt-[20px] md:mt-[80px]">
+        <div className="px-4 mt-5 md:mt-3">
           <AnimatePresence mode="wait">
             {activeTab === "active" && (
               <motion.div
@@ -516,7 +540,7 @@ export default function OrdersPage() {
                 {activeOrders.length > 0 ? (
                   <div>
                     {activeOrders.map((order) => (
-                      <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} />
+                      <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id)} />
                     ))}
                   </div>
                 ) : (
@@ -557,7 +581,7 @@ export default function OrdersPage() {
                   <div>
                     {orders.map((order) =>
                       order.Status === "PENDING" || order.Status === "ACCEPTED" || order.Status === "IN_PROGRESS" ? (
-                        <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} />
+                        <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id)} />
                       ) : (
                         <CompletedOrderCard key={order.ID || order.id} order={order} {...reviewProps} />
                       )
@@ -571,6 +595,13 @@ export default function OrdersPage() {
           </AnimatePresence>
         </div>
       </div>
+      <ChatDrawer
+        orderId={chatOrderId || ""}
+        currentUserId={user?.ID || ""}
+        currentUserRole="customer"
+        open={!!chatOrderId}
+        onClose={() => setChatOrderId(null)}
+      />
     </div>
   )
 }

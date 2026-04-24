@@ -18,6 +18,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { ToastNotification } from "@/components/ui/toast-notification"
+import { useToast } from "@/hooks/useToast"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -25,6 +27,7 @@ import { cn } from "@/lib/utils"
 export default function TechnicianDashboardPage() {
   const { user, isLoading: authLoading } = useAuth("technician")
   const router = useRouter()
+  const { toasts, removeToast, toast } = useToast()
   const [isOnline, setIsOnline] = useState(true)
   const [incomingOrders, setIncomingOrders] = useState<any[]>([])
   const [declinedOrders, setDeclinedOrders] = useState<string[]>([])
@@ -113,12 +116,15 @@ export default function TechnicianDashboardPage() {
             o.Status === "PENDING"
           ) || [])
         }
+        toast.success("Order accepted!", "Navigate to customer location.")
       } else {
         const data = await response.json()
         console.error("Failed to accept:", data)
+        toast.error("Failed to accept", "Please try again.")
       }
     } catch (err) {
       console.error("Accept error:", err)
+      toast.error("Failed to accept", "Please try again.")
     }
   }
 
@@ -132,6 +138,7 @@ export default function TechnicianDashboardPage() {
     }
 
     setIncomingOrders(prev => prev.filter(o => o.ID !== orderId))
+    toast.warning("Order declined", "Order removed from your list.")
   }
 
   if (authLoading) {
@@ -143,8 +150,9 @@ export default function TechnicianDashboardPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto">
+    <div className="relative min-h-screen bg-background pb-4">
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
+      <div className="max-w-2xl mx-auto">
         {/* Main Content */}
         <div className="p-4 space-y-6">
           {/* Header */}
@@ -158,7 +166,7 @@ export default function TechnicianDashboardPage() {
                 You have {incomingOrders.length} new orders
               </p>
             </div>
-            <div className="flex items-center gap-2 md:hidden">
+            {/* <div className="flex items-center gap-2 md:hidden">
               <span
                 className={cn(
                   "text-sm font-medium",
@@ -172,8 +180,43 @@ export default function TechnicianDashboardPage() {
                 onCheckedChange={setIsOnline}
                 className="data-[state=checked]:bg-primary"
               />
-            </div>
+            </div> */}
           </div>
+
+          {/* Earnings Summary */}
+          <section>
+            <Card className="bg-linear-to-br from-primary/20 to-primary/5 border-primary/20 overflow-hidden max-w-full">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-3">
+                  Earnings Summary
+                </h2>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Total Earnings</p>
+                    <p className="text-lg font-bold text-primary">
+                      {earnings?.total_earnings
+                        ? `Rp ${earnings.total_earnings.toLocaleString("id-ID")}`
+                        : "Rp 0"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">This Month</p>
+                    <p className="text-lg font-bold text-foreground">
+                      {earnings?.this_month_earnings
+                        ? `Rp ${earnings.this_month_earnings.toLocaleString("id-ID")}`
+                        : "Rp 0"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Total Repairs</p>
+                    <p className="text-lg font-bold text-foreground">
+                      {earnings?.total_completed || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
           {/* Incoming Orders Section */}
           <section>
@@ -354,40 +397,6 @@ export default function TechnicianDashboardPage() {
             )}
           </section>
 
-          {/* Earnings Summary */}
-          <section>
-            <Card className="bg-linear-to-br from-primary/20 to-primary/5 border-primary/20 overflow-hidden max-w-full">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-3">
-                  Earnings Summary
-                </h2>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Total Earnings</p>
-                    <p className="text-lg font-bold text-primary">
-                      {earnings?.total_earnings
-                        ? `Rp ${earnings.total_earnings.toLocaleString("id-ID")}`
-                        : "Rp 0"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">This Month</p>
-                    <p className="text-lg font-bold text-foreground">
-                      {earnings?.this_month_earnings
-                        ? `Rp ${earnings.this_month_earnings.toLocaleString("id-ID")}`
-                        : "Rp 0"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Total Repairs</p>
-                    <p className="text-lg font-bold text-foreground">
-                      {earnings?.total_completed || 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
         </div>
       </div>
     </div>

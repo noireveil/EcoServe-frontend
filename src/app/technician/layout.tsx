@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { BottomNav } from '@/components/technician/bottom-nav'
+import { TechnicianBottomNav, TechnicianTopNav } from '@/components/technician/bottom-nav'
 
 export const metadata: Metadata = {
   title: 'Technician Dashboard - EcoServe',
@@ -13,8 +13,12 @@ export default function TechnicianLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <main className="pb-20 md:pb-0 md:pt-16">{children}</main>
-      <BottomNav />
+      {/* Desktop top nav */}
+      <TechnicianTopNav />
+      {/* Main content */}
+      <main className="flex-1 pb-20 md:pb-0">{children}</main>
+      {/* Mobile bottom nav */}
+      <TechnicianBottomNav />
     </div>
   )
 }

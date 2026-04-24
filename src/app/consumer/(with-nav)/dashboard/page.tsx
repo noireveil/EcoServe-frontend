@@ -6,11 +6,12 @@ import { motion } from "framer-motion"
 import { apiFetch } from "@/lib/api"
 import { useRateLimit } from "@/hooks/useRateLimit"
 import { useAuth } from "@/hooks/useAuth"
+import { useLanguage } from "@/context/LanguageContext"
+import { t } from "@/lib/i18n"
 import { RateLimitAlert } from "@/components/ui/rate-limit-alert"
 import { getCachedOrders, setCachedOrders } from "@/lib/auth-cache"
 import { Badge } from "@/components/ui/badge"
 import {
-  Bell,
   Leaf,
   Wrench,
   Recycle,
@@ -23,17 +24,18 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const quickActions = [
-  { id: "report", label: "Report Damage", href: "/consumer/report-damage", icon: AlertTriangle, color: "bg-emerald-500/20 text-emerald-400" },
-  { id: "garage", label: "My Garage", href: "/consumer/devices", icon: Warehouse, color: "bg-blue-500/20 text-blue-400" },
-  { id: "track", label: "Track Order", href: "/consumer/orders", icon: MapPin, color: "bg-orange-500/20 text-orange-400" },
-  { id: "ai", label: "AI Diagnosis", href: "/consumer/ai-diagnosis", icon: Sparkles, color: "bg-purple-500/20 text-purple-400" },
-]
-
 export default function ConsumerDashboard() {
   const { user, isLoading: authLoading } = useAuth("customer")
+  const { lang } = useLanguage()
   const [orders, setOrders] = useState<any[]>([])
   const { isLimited, countdown, triggerLimit } = useRateLimit()
+
+  const quickActions = [
+    { id: "report", label: t(lang, "reportDamage"), href: "/consumer/report-damage", icon: AlertTriangle, color: "bg-emerald-500/20 text-emerald-400" },
+    { id: "garage", label: t(lang, "myGarage"), href: "/consumer/devices", icon: Warehouse, color: "bg-blue-500/20 text-blue-400" },
+    { id: "track", label: t(lang, "trackOrder"), href: "/consumer/orders", icon: MapPin, color: "bg-orange-500/20 text-orange-400" },
+    { id: "ai", label: t(lang, "aiDiagnosis"), href: "/consumer/ai-diagnosis", icon: Sparkles, color: "bg-purple-500/20 text-purple-400" },
+  ]
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -105,10 +107,10 @@ export default function ConsumerDashboard() {
   const totalRepairs = completedOrders.length
 
   return (
-    <div className="relative min-h-screen bg-background pb-20">
+    <div className="relative min-h-screen bg-background pb-10">
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto">
-        <main className="px-4 py-6 md:pt-[85px]">
+      <div className="max-w-2xl mx-auto">
+        <main className="px-4 py-6 md:pt-5">
           <RateLimitAlert isLimited={isLimited} countdown={countdown} />
 
           {/* Top Header */}
@@ -120,19 +122,19 @@ export default function ConsumerDashboard() {
                   : `Hello, ${getNickname(user?.FullName || user?.fullName || user?.full_name || "")} 👋`
                 }
               </h1>
-              <p className="text-sm text-muted-foreground">Welcome back</p>
+              <p className="text-sm text-muted-foreground">{t(lang, "welcomeBack")}</p>
             </div>
-            <button className="relative rounded-full bg-secondary p-2.5 transition-colors hover:bg-secondary/80">
+            {/* <button className="relative rounded-full bg-secondary p-2.5 transition-colors hover:bg-secondary/80">
               <Bell className="h-5 w-5 text-foreground" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-emerald-500" />
-            </button>
+            </button> */}
           </header>
 
           {/* Impact Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-5"
+            className="relative mb-6 overflow-hidden rounded-2xl bg-linear-to-br from-emerald-600 to-emerald-800 p-5"
           >
             {/* Leaf pattern background */}
             <div className="absolute inset-0 opacity-10">
@@ -147,14 +149,14 @@ export default function ConsumerDashboard() {
             <div className="relative z-10">
               <div className="mb-1 flex items-center gap-2">
                 <Leaf className="h-4 w-4 text-emerald-200" />
-                <span className="text-sm font-medium text-emerald-100">Your Eco Impact</span>
+                <span className="text-sm font-medium text-emerald-100">{t(lang, "yourEcoImpact")}</span>
               </div>
 
               <div className="mb-4">
                 <span className="text-4xl font-bold text-white">
                   {totalCO2.toFixed(1)} kg
                 </span>
-                <p className="text-sm text-emerald-100">CO₂ Avoided</p>
+                <p className="text-sm text-emerald-100">{t(lang, "co2Avoided")}</p>
               </div>
 
               <div className="flex gap-6">
@@ -166,7 +168,7 @@ export default function ConsumerDashboard() {
                     <p className="text-lg font-semibold text-white">
                       {totalRepairs}
                     </p>
-                    <p className="text-xs text-emerald-100">Repairs</p>
+                    <p className="text-xs text-emerald-100">{t(lang, "repairs")}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -175,7 +177,7 @@ export default function ConsumerDashboard() {
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-white">{totalCO2.toFixed(1)} kg</p>
-                    <p className="text-xs text-emerald-100">E-waste saved</p>
+                    <p className="text-xs text-emerald-100">{t(lang, "eWasteSaved")}</p>
                   </div>
                 </div>
               </div>
@@ -227,7 +229,7 @@ export default function ConsumerDashboard() {
                 {activeByCategory.map((order) => (
                   <div key={order.ID} className="rounded-xl border border-border/50 bg-card p-4">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="font-semibold text-foreground">Active Order</h3>
+                      <h3 className="font-semibold text-foreground">{t(lang, "activeOrder")}</h3>
                       <Badge className={cn(
                         "text-xs",
                         order.Status === "PENDING"
@@ -252,7 +254,7 @@ export default function ConsumerDashboard() {
 
                     {order.Status === "PENDING" ? (
                       <p className="text-sm text-muted-foreground">
-                        Waiting for technician...
+                        {t(lang, "waitingForTechnician")}
                       </p>
                     ) : order.Technician ? (
                       <div className="flex items-center gap-2">
@@ -285,7 +287,7 @@ export default function ConsumerDashboard() {
               className="mb-6"
             >
               <div className="rounded-xl border border-border/50 bg-card p-4">
-                <p className="text-sm text-muted-foreground">No active orders</p>
+                <p className="text-sm text-muted-foreground">{t(lang, "noActiveOrders")}</p>
               </div>
             </motion.section>
           )}
@@ -293,12 +295,12 @@ export default function ConsumerDashboard() {
           {/* Recent Repairs */}
           <section>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-foreground">Recent Repairs</h3>
+              <h3 className="font-semibold text-foreground">{t(lang, "recentRepairs")}</h3>
               <Link
                 href="/consumer/orders?tab=completed"
                 className="flex items-center gap-1 text-sm text-primary hover:underline"
               >
-                See all
+                {t(lang, "seeAll")}
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
@@ -335,7 +337,7 @@ export default function ConsumerDashboard() {
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-sm">No completed repairs yet</p>
+                <p className="text-muted-foreground text-sm">{t(lang, "noRepairsYet")}</p>
               )}
             </div>
           </section>

@@ -12,35 +12,36 @@ const supabase = createClient(
 import { motion } from "framer-motion"
 import {
   ChevronRight,
-  Bell,
-  Globe,
+  AlertCircle,
   FileText,
   Shield,
   Info,
   LogOut,
   Wrench,
   Trash2,
+  Smartphone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
+import { Modal } from "@/components/ui/modal"
+import { ToastNotification } from "@/components/ui/toast-notification"
+import { useToast } from "@/hooks/useToast"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { LanguageToggle } from "@/components/ui/language-toggle"
 import { logout } from "@/lib/logout"
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading } = useAuth("customer")
-  const [language, setLanguage] = useState("English")
   const [orders, setOrders] = useState<any[]>([])
   const [devices, setDevices] = useState<any[]>([])
-  const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({ full_name: "", profile_picture_url: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [activeModal, setActiveModal] = useState<"about" | "privacy" | "terms" | null>(null)
+  const [modalOpen, setModalOpen] = useState<"about" | "privacy" | "terms" | "edit" | "delete" | "logout" | "report" | null>(null)
+  const { toasts, removeToast, toast } = useToast()
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -104,7 +105,7 @@ export default function ProfilePage() {
       full_name: user?.FullName || "",
       profile_picture_url: user?.ProfilePictureURL || "",
     })
-    setIsEditing(true)
+    setModalOpen("edit")
   }
 
   const handleSaveProfile = async () => {
@@ -121,14 +122,15 @@ export default function ProfilePage() {
       if (response.ok) {
         const { setCachedUser } = await import("@/lib/auth-cache")
         setCachedUser({ ...user, FullName: editForm.full_name })
-        setIsEditing(false)
-        window.location.reload()
+        setModalOpen(null)
+        toast.success("Profile updated", "Your changes have been saved.")
+        setTimeout(() => window.location.reload(), 1500)
       } else {
         const data = await response.json()
-        console.error("Failed to update:", data)
+        toast.error("Update failed", data.message || "Could not save your changes.")
       }
     } catch (err) {
-      console.error("Update profile error:", err)
+      toast.error("Update failed", "Something went wrong. Please try again.")
     } finally {
       setIsSaving(false)
     }
@@ -145,24 +147,27 @@ export default function ProfilePage() {
         clearCachedUser()
         clearCachedOrders()
         window.location.href = "/auth"
+      } else {
+        toast.error("Delete failed", "Could not delete your account. Please try again.")
+        setModalOpen(null)
       }
     } catch (err) {
-      console.error("Delete account error:", err)
+      toast.error("Delete failed", "Something went wrong. Please try again.")
+      setModalOpen(null)
     }
   }
 
   const menuItems = {
     Account: [
-      { icon: Wrench, label: "My Devices", href: "/consumer/devices" },
-      { icon: Bell, label: "My Orders", href: "/consumer/orders" },
+      { icon: Smartphone, label: "My Devices", href: "/consumer/devices" },
+      { icon: Wrench, label: "My Orders", href: "/consumer/orders" },
     ],
-    Preferences: [
-      { icon: Globe, label: "Language", sublabel: language, type: "link", onClick: () => setLanguage(prev => prev === "English" ? "Indonesia" : "English") },
-    ],
+    Preferences: [],
     About: [
-      { icon: Info, label: "About EcoServe", onClick: () => setActiveModal("about") },
-      { icon: Shield, label: "Privacy Policy", onClick: () => setActiveModal("privacy") },
-      { icon: FileText, label: "Terms of Service", onClick: () => setActiveModal("terms") },
+      { icon: Info, label: "About EcoServe", onClick: () => setModalOpen("about") },
+      { icon: Shield, label: "Privacy Policy", onClick: () => setModalOpen("privacy") },
+      { icon: FileText, label: "Terms of Service", onClick: () => setModalOpen("terms") },
+      { icon: AlertCircle, label: "Report a Problem", onClick: () => setModalOpen("report"), showChevron: true },
       {
         icon: null,
         label: "App Version",
@@ -181,10 +186,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background md:pb-10">
       <div className="max-w-5xl mx-auto">
         {/* Profile Header */}
-        <div className="px-4 pt-6 md:pt-[90px] pb-8">
+        <div className="px-4 pt-6 md:pt-6 pb-8">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -198,7 +203,7 @@ export default function ProfilePage() {
                 className="w-20 h-20 rounded-full object-cover border-2 border-primary"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold">
                 {user?.FullName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
               </div>
             )}
@@ -229,7 +234,7 @@ export default function ProfilePage() {
           transition={{ duration: 0.3, delay: 0.1 }}
           className="mx-4 mb-8"
         >
-          <Card className="bg-gradient-to-br from-primary/20 to-accent/20 border-primary/30 p-6">
+          <Card className="bg-linear-to-br from-primary/20 to-accent/20 border-primary/30 p-6">
             <h2 className="text-sm font-semibold text-muted-foreground mb-6">
               Your Impact
             </h2>
@@ -263,6 +268,8 @@ export default function ProfilePage() {
                 {section}
               </h3>
               <div className="space-y-2">
+                {section === "Preferences" && <ThemeToggle />}
+                {section === "Preferences" && <LanguageToggle />}
                 {items.map((item: any, itemIndex) => {
                   if (item.type === "toggle") {
                     return (
@@ -296,7 +303,7 @@ export default function ProfilePage() {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05 }}
-                        className="flex items-center justify-between px-4 py-3 rounded-lg bg-card/50 border border-border/50"
+                        className="flex items-center justify-between px-4 py-3 rounded-lg bg-card border border-border/50"
                       >
                         <span className="text-sm font-medium">{item.label}</span>
                         <span className="text-xs text-muted-foreground">
@@ -316,7 +323,7 @@ export default function ProfilePage() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05 }}
-                      className="flex items-center justify-between px-4 py-3 rounded-lg bg-card/50 border border-border/50 hover:bg-card/80 transition-colors group cursor-pointer"
+                      className="flex items-center justify-between px-4 py-3 rounded-lg bg-card border border-border/50 hover:bg-card/80 transition-colors group cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <Icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -329,7 +336,9 @@ export default function ProfilePage() {
                           )}
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      {(item.href || item.showChevron) && (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      )}
                     </motion.a>
                   )
                 })}
@@ -345,136 +354,186 @@ export default function ProfilePage() {
           transition={{ duration: 0.3, delay: 0.4 }}
           className="px-4 mt-8 mb-4 space-y-2"
         >
-          {!showDeleteConfirm ? (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="w-5 h-5" />
-              Delete Account
-            </button>
-          ) : (
-            <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-4 space-y-3">
-              <p className="text-sm font-medium text-destructive">Delete your account?</p>
-              <p className="text-xs text-muted-foreground">
-                This action cannot be undone. Your data will be soft-deleted and you will be logged out.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  className="flex-1 py-2 rounded-lg bg-destructive text-white text-sm font-medium"
-                >
-                  Yes, Delete
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!showLogoutConfirm ? (
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-border/50 text-muted-foreground hover:bg-secondary/50 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              Sign Out
-            </button>
-          ) : (
-            <div className="rounded-xl border border-border/50 bg-secondary/30 p-4 space-y-3">
-              <p className="text-sm font-medium">Sign out?</p>
-              <p className="text-xs text-muted-foreground">
-                You will need to login again to access your account.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={logout}
-                  className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                >
-                  Yes, Sign Out
-                </button>
-              </div>
-            </div>
-          )}
+          <button
+            onClick={() => setModalOpen("delete")}
+            className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-5 h-5" />
+            Delete Account
+          </button>
+          <button
+            onClick={() => setModalOpen("logout")}
+            className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-border/50 text-muted-foreground hover:bg-secondary/50 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            Sign Out
+          </button>
         </motion.div>
       </div>
 
+      {/* Delete Account Modal */}
+      <Modal
+        open={modalOpen === "delete"}
+        onClose={() => setModalOpen(null)}
+        title="Delete Account?"
+        variant="destructive"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive hover:bg-destructive/90 text-white"
+              onClick={handleDeleteAccount}
+            >
+              Yes, Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This action cannot be undone. Your data will be soft-deleted and you will be logged out.
+        </p>
+      </Modal>
+
+      {/* Sign Out Modal */}
+      <Modal
+        open={modalOpen === "logout"}
+        onClose={() => setModalOpen(null)}
+        title="Sign Out?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>
+              Cancel
+            </Button>
+            <Button className="flex-1" onClick={logout}>
+              Yes, Sign Out
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          You will need to login again to access your account.
+        </p>
+      </Modal>
+
       {/* Edit Profile Modal */}
-      {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border/50 p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Edit Profile</h3>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name</label>
-              <input
-                type="text"
-                value={editForm.full_name}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+      <Modal
+        open={modalOpen === "edit"}
+        onClose={() => setModalOpen(null)}
+        title="Edit Profile"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleSaveProfile}
+              disabled={isSaving || !editForm.full_name.trim()}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Full Name</label>
+            <input
+              type="text"
+              value={editForm.full_name}
+              onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Profile Picture</label>
+            {editForm.profile_picture_url && (
+              <img
+                src={editForm.profile_picture_url}
+                alt="Preview"
+                className="w-20 h-20 rounded-full object-cover border-2 border-primary mx-auto"
               />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Profile Picture</label>
-              {editForm.profile_picture_url && (
-                <img
-                  src={editForm.profile_picture_url}
-                  alt="Preview"
-                  className="w-20 h-20 rounded-full object-cover border-2 border-primary mx-auto"
-                />
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="w-full py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50 disabled:opacity-50"
-              >
-                {isUploading ? "Uploading..." : editForm.profile_picture_url ? "Change Photo" : "Upload Photo"}
-              </button>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                disabled={isSaving || !editForm.full_name.trim()}
-                className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : "Save"}
-              </button>
-            </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50 disabled:opacity-50"
+            >
+              {isUploading ? "Uploading..." : editForm.profile_picture_url ? "Change Photo" : "Upload Photo"}
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
 
-      {/* About / Privacy / Terms Modal */}
-      {activeModal && (() => {
-        const modalContent = {
+      {/* About / Privacy / Terms Modals */}
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
+
+      {/* Report a Problem Modal */}
+      <Modal
+        open={modalOpen === "report"}
+        onClose={() => setModalOpen(null)}
+        title="Report a Problem"
+        size="md"
+        footer={
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => setModalOpen(null)}
+              className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground"
+            >
+              Tutup
+            </button>
+            <button
+              onClick={() => {
+                window.location.href = "mailto:support@ecoserve.id?subject=Report%20a%20Problem%20-%20EcoServe&body=Halo%20EcoServe%2C%0A%0ASaya%20ingin%20melaporkan%3A%0A%0A"
+                setModalOpen(null)
+              }}
+              className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+            >
+              Buka Email
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{`Mengalami masalah dengan EcoServe? Kami siap membantu!
+
+📧 Email Support
+Kirim laporan detail ke:
+support@ecoserve.id
+
+Sertakan informasi berikut:
+- Deskripsi masalah yang dialami
+- Langkah-langkah yang dilakukan sebelum masalah terjadi
+- Screenshot jika memungkinkan
+- ID pesanan (jika terkait dengan transaksi)
+
+⏱️ Response Time
+Kami akan merespons dalam 1x24 jam di hari kerja.
+
+🔒 Keamanan & Fraud
+Untuk melaporkan teknisi yang mencurigakan atau
+transaksi yang bermasalah, tambahkan subjek:
+[FRAUD REPORT] di email Anda.
+
+Terima kasih telah membantu kami menjadi lebih baik! 🌱`}</p>
+      </Modal>
+
+      {(["about", "privacy", "terms"] as const).map((key) => {
+        const content = {
           about: {
             title: "About EcoServe",
-            content: `EcoServe adalah platform infrastruktur cerdas yang dirancang untuk mendigitalkan ekonomi sirkular di Indonesia.
+            body: `EcoServe adalah platform infrastruktur cerdas yang dirancang untuk mendigitalkan ekonomi sirkular di Indonesia.
 
 Kami menjembatani konsumen dengan teknisi perbaikan ahli melalui lapisan kecerdasan buatan (AI) dan pemetaan geospasial presisi — memastikan setiap perangkat rusak mendapat penanganan terbaik dari teknisi terdekat yang tepat.
 
@@ -488,7 +547,7 @@ Ditenagai oleh Gemini AI untuk diagnostik cerdas, PostGIS untuk routing geospasi
           },
           privacy: {
             title: "Privacy Policy",
-            content: `EcoServe berkomitmen penuh untuk melindungi privasi dan keamanan data pengguna.
+            body: `EcoServe berkomitmen penuh untuk melindungi privasi dan keamanan data pengguna.
 
 📋 Data yang Kami Kumpulkan
 - Alamat email untuk autentikasi OTP
@@ -506,7 +565,7 @@ Kami tidak pernah menjual, menyewakan, atau membagikan data pribadi Anda kepada 
           },
           terms: {
             title: "Terms of Service",
-            content: `Dengan menggunakan EcoServe, Anda menyetujui seluruh ketentuan layanan berikut.
+            body: `Dengan menggunakan EcoServe, Anda menyetujui seluruh ketentuan layanan berikut.
 
 👤 Kewajiban Pengguna
 - Memberikan informasi kerusakan perangkat yang akurat dan jujur
@@ -524,34 +583,26 @@ Setiap transaksi divalidasi melalui sistem Anti-Fraud berlapis: GPS Lock, Photo 
 
 📅 EcoServe berhak mengubah ketentuan layanan ini sewaktu-waktu dengan pemberitahuan terlebih dahulu.`,
           },
-        }
-        const current = modalContent[activeModal]
+        }[key]
         return (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-4 sm:pb-0">
-            <div className="w-full max-w-lg rounded-2xl bg-card border border-border/50 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-                <h3 className="font-semibold">{current.title}</h3>
-                <button onClick={() => setActiveModal(null)} className="text-muted-foreground hover:text-foreground">
-                  ✕
-                </button>
-              </div>
-              <div className="px-6 py-4 max-h-96 overflow-y-auto">
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {current.content}
-                </p>
-              </div>
-              <div className="px-6 py-4 border-t border-border/50">
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                >
-                  Got it
-                </button>
-              </div>
-            </div>
-          </div>
+          <Modal
+            key={key}
+            open={modalOpen === key}
+            onClose={() => setModalOpen(null)}
+            title={content.title}
+            size="md"
+            footer={
+              <Button className="flex-1" onClick={() => setModalOpen(null)}>
+                Got it
+              </Button>
+            }
+          >
+            <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+              {content.body}
+            </p>
+          </Modal>
         )
-      })()}
+      })}
     </div>
   )
 }

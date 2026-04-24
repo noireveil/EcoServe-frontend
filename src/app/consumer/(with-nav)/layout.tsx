@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { BottomNav } from '@/components/consumer/bottom-nav'
+import { ConsumerBottomNav, ConsumerTopNav } from '@/components/consumer/bottom-nav'
 
 export const metadata: Metadata = {
   title: 'EcoServe',
@@ -13,8 +13,12 @@ export default function WithNavLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <main className="flex-1">{children}</main>
-      <BottomNav />
+      {/* Desktop top nav */}
+      <ConsumerTopNav />
+      {/* Main content */}
+      <main className="flex-1 pb-20 md:pb-0">{children}</main>
+      {/* Mobile bottom nav */}
+      <ConsumerBottomNav />
     </div>
   )
 }

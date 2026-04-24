@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, ChevronRight, Wrench, Smartphone, Laptop, Zap, Leaf, X, Trash2 } from 'lucide-react'
+import { Plus, ChevronRight, Wrench, Smartphone, Laptop, Zap, Leaf, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Modal } from '@/components/ui/modal'
+import { ToastNotification } from '@/components/ui/toast-notification'
+import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils'
 
 const categoryMap: Record<string, string> = {
@@ -48,7 +51,9 @@ export default function MyDevicesPage() {
   const [devices, setDevices] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const [showModal, setShowModal] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toasts, removeToast, toast } = useToast()
   const [form, setForm] = useState({
     brand_name: "",
     category: "Smartphone",
@@ -90,11 +95,6 @@ export default function MyDevicesPage() {
   const totalCO2Saved = completedOrders.reduce((sum, o) => sum + (o.EWasteSavedKg || 0), 0).toFixed(1)
 
   const handleDeleteDevice = async (deviceId: string) => {
-    const confirmed = window.confirm(
-      "Hapus perangkat ini dari garasi digital?"
-    )
-    if (!confirmed) return
-
     try {
       const response = await apiFetch(`/api/devices/${deviceId}`, {
         method: "DELETE",
@@ -102,11 +102,15 @@ export default function MyDevicesPage() {
 
       if (response.ok) {
         setDevices(prev => prev.filter(d => d.ID !== deviceId))
+        setDeleteConfirmId(null)
+        toast.success("Device removed", "Device has been deleted from your garage.")
       } else {
-        console.error("Failed to delete device")
+        toast.error("Delete failed", "Could not remove the device. Please try again.")
+        setDeleteConfirmId(null)
       }
     } catch (err) {
-      console.error("Delete device error:", err)
+      toast.error("Delete failed", "Something went wrong. Please try again.")
+      setDeleteConfirmId(null)
     }
   }
 
@@ -129,9 +133,12 @@ export default function MyDevicesPage() {
         setDevices(prev => [data.data, ...prev])
         setForm({ brand_name: "", category: "Smartphone", weight_in_kg: 0 })
         setShowModal(false)
+        toast.success("Device added", `${form.brand_name} has been added to your garage.`)
+      } else {
+        toast.error("Add failed", "Could not add the device. Please try again.")
       }
     } catch (err) {
-      console.error("Failed to add device:", err)
+      toast.error("Add failed", "Something went wrong. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -147,7 +154,7 @@ export default function MyDevicesPage() {
 
   return (
     <div className="min-h-screen w-full bg-background pb-20">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Sticky Header */}
         <div className="sticky top-0 md:top-16 z-40 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center justify-between px-4 py-4">
@@ -164,7 +171,7 @@ export default function MyDevicesPage() {
         </div>
 
         {/* Main Content */}
-        <div className="px-4 md:pt-[72px] pb-6 space-y-6">
+        <div className="px-4 pb-6 space-y-6">
           {devices.length > 0 ? (
             <>
               {/* Summary Card */}
@@ -231,7 +238,7 @@ export default function MyDevicesPage() {
                             <div className="flex flex-col items-end gap-2 flex-shrink-0">
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => handleDeleteDevice(device.ID)}
+                                  onClick={() => setDeleteConfirmId(device.ID)}
                                   className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -290,110 +297,100 @@ export default function MyDevicesPage() {
         </div>
 
         {/* Add Device Modal */}
-        <AnimatePresence>
-          {showModal && (
+        <Modal
+          open={showModal}
+          onClose={() => setShowModal(false)}
+          title="Add Device"
+          size="md"
+          footer={
             <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowModal(false)}
-                className="fixed inset-0 z-50 bg-black/50"
-              />
-
-              {/* Modal */}
-              <motion.div
-                initial={{ opacity: 0, y: 100 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 100 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-border/50 bg-card p-6 max-h-[90vh] overflow-y-auto"
+              <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleAddDevice}
+                disabled={isSubmitting || !form.brand_name || !form.weight_in_kg}
               >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-foreground">Add Device</h2>
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                </div>
-
-                <div className="space-y-5">
-                  {/* Category Selector */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium block pb-1">Device Category</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.keys(categoryMap).map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => setForm({ ...form, category: cat })}
-                          className={cn(
-                            'py-2 px-3 rounded-lg border transition-colors text-xs font-medium',
-                            form.category === cat
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border/50 text-muted-foreground hover:border-border'
-                          )}
-                        >
-                          {cat === 'Smartphone' && <Smartphone className="w-4 h-4 mx-auto mb-1" />}
-                          {cat === 'Laptop' && <Laptop className="w-4 h-4 mx-auto mb-1" />}
-                          {cat === 'Pendingin & Komersial' && <Zap className="w-4 h-4 mx-auto mb-1" />}
-                          {cat === 'Peralatan Rumah Tangga' && <Zap className="w-4 h-4 mx-auto mb-1" />}
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Brand Name */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium block pb-1">Brand Name</Label>
-                    <Input
-                      placeholder="e.g., Apple, Samsung"
-                      value={form.brand_name}
-                      onChange={(e) => setForm({ ...form, brand_name: e.target.value })}
-                      className="bg-secondary/50 border-border/50"
-                    />
-                  </div>
-
-                  {/* Weight */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium block pb-1">Weight (kg)</Label>
-                    <Input
-                      type="number"
-                      placeholder="0.19"
-                      step="0.01"
-                      value={form.weight_in_kg || ""}
-                      onChange={(e) => setForm({ ...form, weight_in_kg: parseFloat(e.target.value) || 0 })}
-                      className="bg-secondary/50 border-border/50"
-                    />
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="space-y-2 pt-4">
-                    <Button
-                      onClick={handleAddDevice}
-                      className="w-full bg-primary hover:bg-primary/90"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Saving..." : "Save Device"}
-                    </Button>
-                    <Button
-                      onClick={() => setShowModal(false)}
-                      variant="outline"
-                      className="w-full"
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
+                {isSubmitting ? "Saving..." : "Save Device"}
+              </Button>
             </>
-          )}
-        </AnimatePresence>
+          }
+        >
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium block pb-1">Device Category</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.keys(categoryMap).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setForm({ ...form, category: cat })}
+                    className={cn(
+                      'py-2 px-3 rounded-lg border transition-colors text-xs font-medium',
+                      form.category === cat
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border/50 text-muted-foreground hover:border-border'
+                    )}
+                  >
+                    {cat === 'Smartphone' && <Smartphone className="w-4 h-4 mx-auto mb-1" />}
+                    {cat === 'Laptop' && <Laptop className="w-4 h-4 mx-auto mb-1" />}
+                    {cat === 'Pendingin & Komersial' && <Zap className="w-4 h-4 mx-auto mb-1" />}
+                    {cat === 'Peralatan Rumah Tangga' && <Zap className="w-4 h-4 mx-auto mb-1" />}
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium block pb-1">Brand Name</Label>
+              <Input
+                placeholder="e.g., Apple, Samsung"
+                value={form.brand_name}
+                onChange={(e) => setForm({ ...form, brand_name: e.target.value })}
+                className="bg-secondary/50 border-border/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium block pb-1">Weight (kg)</Label>
+              <Input
+                type="number"
+                placeholder="0.19"
+                step="0.01"
+                value={form.weight_in_kg || ""}
+                onChange={(e) => setForm({ ...form, weight_in_kg: parseFloat(e.target.value) || 0 })}
+                className="bg-secondary/50 border-border/50"
+              />
+            </div>
+          </div>
+        </Modal>
+
+        {/* Delete Confirm Modal */}
+        <Modal
+          open={deleteConfirmId !== null}
+          onClose={() => setDeleteConfirmId(null)}
+          title="Remove Device?"
+          variant="destructive"
+          size="sm"
+          footer={
+            <>
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteConfirmId(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-destructive hover:bg-destructive/90 text-white"
+                onClick={() => deleteConfirmId && handleDeleteDevice(deleteConfirmId)}
+              >
+                Yes, Remove
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-muted-foreground">
+            This device will be removed from your digital garage. This action cannot be undone.
+          </p>
+        </Modal>
+
+        <ToastNotification toasts={toasts} onRemove={removeToast} />
       </div>
     </div>
   )
