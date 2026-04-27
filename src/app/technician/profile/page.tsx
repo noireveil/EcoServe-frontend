@@ -3,77 +3,68 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
+import { supabase } from "@/lib/supabase"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import {
   FileText,
   LogOut,
   Trash2,
-  ChevronRight,
-  Globe,
   Lock,
   Settings,
   Info,
+  AlertCircle,
+  ClipboardList,
+  DollarSign,
+  MapPin,
+  Wrench,
+  ChevronRight,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Modal } from "@/components/ui/modal"
+import { ToastNotification } from "@/components/ui/toast-notification"
+import { useToast } from "@/hooks/useToast"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { LanguageToggle } from "@/components/ui/language-toggle"
 import { cn } from "@/lib/utils"
 import { logout } from "@/lib/logout"
 
 export default function TechnicianProfilePage() {
   const { user, isLoading: authLoading } = useAuth("technician")
-  const [isOnline, setIsOnline] = useState(true)
-  const [language, setLanguage] = useState("English")
-  const [performance, setPerformance] = useState<any>(null)
-  const [isEditing, setIsEditing] = useState(false)
+  const [isOnline, setIsOnline] = useState(false)
+  const [isTogglingAvailability, setIsTogglingAvailability] = useState(false)
+  const { data: performance } = useSWR(
+    "/api/technicians/performance",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
   const [editForm, setEditForm] = useState({ full_name: "", profile_picture_url: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [activeModal, setActiveModal] = useState<"about" | "privacy" | "terms" | null>(null)
+  const [modalOpen, setModalOpen] = useState<"about" | "privacy" | "terms" | "edit" | "delete" | "logout" | "report" | null>(null)
+  const { toasts, removeToast, toast } = useToast()
 
   useEffect(() => {
-    const fetchPerformance = async () => {
+    const fetchAvailability = async () => {
       try {
-        const response = await apiFetch("/api/technicians/performance")
+        const response = await apiFetch("/api/technicians/availability")
         if (response.ok) {
           const data = await response.json()
-          setPerformance(data.data || null)
+          setIsOnline(data.data?.is_available ?? false)
         }
       } catch (err) {
-        console.error(err)
+        console.error("Failed to fetch availability:", err)
       }
     }
-    fetchPerformance()
+    fetchAvailability()
   }, [])
 
-  const menuItems = {
-    work: [
-      { icon: <FileText size={20} />, label: "My Orders", action: "link" as const },
-      { icon: <FileText size={20} />, label: "Earnings History", action: "link" as const },
-      { icon: <FileText size={20} />, label: "Service Area", action: "link" as const },
-      { icon: <FileText size={20} />, label: "Specializations", action: "link" as const },
-    ],
-    account: [
-      { icon: <Settings size={20} />, label: "Edit Profile", action: "link" as const },
-      { icon: <Globe size={20} />, label: "Language", subtext: language, action: "link" as const },
-    ],
-    about: [
-      { icon: <Info size={20} />, label: "About EcoServe", action: "link" as const },
-      { icon: <Lock size={20} />, label: "Privacy Policy", action: "link" as const },
-      { icon: <FileText size={20} />, label: "Terms of Service", action: "link" as const },
-      { icon: <Info size={20} />, label: "App Version", subtext: "1.0.0", action: "link" as const },
-    ],
-  }
 
   if (authLoading) {
     return (
@@ -108,7 +99,7 @@ export default function TechnicianProfilePage() {
       full_name: user?.FullName || "",
       profile_picture_url: user?.ProfilePictureURL || "",
     })
-    setIsEditing(true)
+    setModalOpen("edit")
   }
 
   const handleSaveProfile = async () => {
@@ -125,14 +116,15 @@ export default function TechnicianProfilePage() {
       if (response.ok) {
         const { setCachedUser } = await import("@/lib/auth-cache")
         setCachedUser({ ...user, FullName: editForm.full_name })
-        setIsEditing(false)
-        window.location.reload()
+        setModalOpen(null)
+        toast.success("Profile updated", "Your changes have been saved.")
+        setTimeout(() => window.location.reload(), 1500)
       } else {
         const data = await response.json()
-        console.error("Failed to update:", data)
+        toast.error("Update failed", data.message || "Could not save your changes.")
       }
     } catch (err) {
-      console.error("Update profile error:", err)
+      toast.error("Update failed", "Something went wrong. Please try again.")
     } finally {
       setIsSaving(false)
     }
@@ -149,22 +141,40 @@ export default function TechnicianProfilePage() {
         clearCachedUser()
         clearCachedOrders()
         window.location.href = "/auth"
+      } else {
+        toast.error("Delete failed", "Could not delete your account. Please try again.")
+        setModalOpen(null)
       }
     } catch (err) {
-      console.error("Delete account error:", err)
+      toast.error("Delete failed", "Something went wrong. Please try again.")
+      setModalOpen(null)
     }
   }
 
-  const handleLanguage = () => {
-    setLanguage(prev => prev === "English" ? "Indonesia" : "English")
-  }
+  const handleToggleAvailability = async (value: boolean) => {
+    setIsTogglingAvailability(true)
+    try {
+      const response = await apiFetch("/api/technicians/availability", {
+        method: "PUT",
+        body: JSON.stringify({ is_available: value }),
+      })
 
-  const handleToggle = (key: string) => {
-    if (key === "language") handleLanguage()
-    else if (key === "edit profile") handleOpenEdit()
-    else if (key === "about ecoserve") setActiveModal("about")
-    else if (key === "privacy policy") setActiveModal("privacy")
-    else if (key === "terms of service") setActiveModal("terms")
+      if (response.ok) {
+        setIsOnline(value)
+        toast.success(
+          value ? "You are now Online" : "You are now Offline",
+          value ? "You will receive incoming orders" : "You won't receive new orders"
+        )
+      } else {
+        const data = await response.json()
+        toast.error("Failed to update status", data.message || "Please try again")
+      }
+    } catch (err) {
+      console.error("Toggle availability error:", err)
+      toast.error("Failed to update status", "Please try again")
+    } finally {
+      setIsTogglingAvailability(false)
+    }
   }
 
   const containerVariants = {
@@ -184,8 +194,8 @@ export default function TechnicianProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-background pb-4">
+      <div className="max-w-2xl mx-auto">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -202,7 +212,7 @@ export default function TechnicianProfilePage() {
                   className="w-16 h-16 rounded-full object-cover border-2 border-primary"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-bold">
+                <div className="w-16 h-16 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center text-white text-xl font-bold">
                   {user?.FullName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
                 </div>
               )}
@@ -225,7 +235,7 @@ export default function TechnicianProfilePage() {
           {/* Performance Stats Card */}
           <motion.div
             variants={itemVariants}
-            className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-accent/10 p-4"
+            className="rounded-xl border border-primary/20 bg-linear-to-br from-primary/10 to-accent/10 p-4"
           >
             <h3 className="mb-4 text-sm font-semibold text-muted-foreground">Your Performance</h3>
             <div className="grid grid-cols-3 gap-3">
@@ -257,7 +267,8 @@ export default function TechnicianProfilePage() {
               >
                 <Switch
                   checked={isOnline}
-                  onCheckedChange={setIsOnline}
+                  onCheckedChange={handleToggleAvailability}
+                  disabled={isTogglingAvailability}
                   className={cn(
                     "data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted-foreground/20"
                   )}
@@ -273,126 +284,280 @@ export default function TechnicianProfilePage() {
             </div>
           </motion.div>
 
-          {/* Menu Sections */}
-          {Object.entries(menuItems).map(([section, items]) => (
-            <motion.div key={section} variants={itemVariants} className="space-y-2">
-              <h3 className="px-2 text-xs font-semibold uppercase text-muted-foreground">
-                {section}
-              </h3>
-              <div className="space-y-1 rounded-xl border border-border/50 overflow-hidden">
-                {items.map((item: any, idx) => (
-                  <div key={idx}>
-                    <motion.div
-                      whileHover={{ backgroundColor: "rgba(16, 185, 129, 0.05)" }}
-                      onClick={() => handleToggle(item.label.toLowerCase())}
-                      className={cn(
-                        "w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors cursor-pointer",
-                        idx !== items.length - 1 && "border-b border-border/30"
-                      )}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground">{item.icon}</span>
-                        <div>
-                          <p className="text-sm font-medium">{item.label}</p>
-                          {item.subtext && <p className="text-xs text-muted-foreground">{item.subtext}</p>}
-                        </div>
-                      </div>
-                      {item.action === "toggle" ? (
-                        <Switch
-                          checked={item.value || false}
-                          onCheckedChange={() => handleToggle(item.label.toLowerCase())}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <ChevronRight size={20} className="text-muted-foreground" />
-                      )}
-                    </motion.div>
-                    {item.action === "toggle" && (
-                      <p className="text-xs text-muted-foreground px-4 py-1">
-                        Notifications are sent via email
-                      </p>
-                    )}
-                  </div>
-                ))}
+          {/* Section: Work */}
+          <motion.div variants={itemVariants} className="space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">Work</h3>
+            <div className="space-y-1">
+              <Link href="/technician/orders" className="flex items-center justify-between py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium">My Orders</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </Link>
+              <Link href="/technician/earnings" className="flex items-center justify-between py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium">Earnings History</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </Link>
+              <div className="flex items-center justify-between py-3 px-4 rounded-xl border border-border/50 bg-card opacity-50">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Service Area</span>
+                </div>
+                <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-muted-foreground">Soon</span>
               </div>
-            </motion.div>
-          ))}
+              <div className="flex items-center justify-between py-3 px-4 rounded-xl border border-border/50 bg-card opacity-50">
+                <div className="flex items-center gap-3">
+                  <Wrench className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Specializations</span>
+                </div>
+                <span className="text-xs bg-secondary px-2 py-0.5 rounded-full text-muted-foreground">Soon</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Section: Preferences */}
+          <motion.div variants={itemVariants} className="space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">Preferences</h3>
+            <button
+              onClick={handleOpenEdit}
+              className="flex items-center justify-between w-full py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Settings className="w-5 h-5 text-primary" />
+                <span className="text-sm font-medium">Edit Profile</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <ThemeToggle />
+            <LanguageToggle />
+          </motion.div>
+
+          {/* Section: About */}
+          <motion.div variants={itemVariants} className="space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">About</h3>
+            <div className="space-y-1">
+              <button onClick={() => setModalOpen("about")} className="flex items-center w-full py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Info className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium">About EcoServe</span>
+                </div>
+              </button>
+              <button onClick={() => setModalOpen("privacy")} className="flex items-center w-full py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Lock className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Privacy Policy</span>
+                </div>
+              </button>
+              <button onClick={() => setModalOpen("terms")} className="flex items-center w-full py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Terms of Service</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setModalOpen("report")}
+                className="flex items-center justify-between w-full py-3 px-4 rounded-xl border border-border/50 bg-card hover:bg-secondary/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium">Report a Problem</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <div className="flex items-center justify-between py-3 px-4 rounded-xl border border-border/50 bg-card">
+                <span className="text-sm font-medium">App Version</span>
+                <span className="text-xs text-muted-foreground">1.0.0</span>
+              </div>
+            </div>
+          </motion.div>
 
           {/* Logout Section */}
           <motion.div variants={itemVariants} className="space-y-2">
-            {!showDeleteConfirm ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 size={20} />
-                Delete Account
-              </button>
-            ) : (
-              <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-4 space-y-3">
-                <p className="text-sm font-medium text-destructive">Delete your account?</p>
-                <p className="text-xs text-muted-foreground">
-                  This action cannot be undone. Your data will be soft-deleted and you will be logged out.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    className="flex-1 py-2 rounded-lg bg-destructive text-white text-sm font-medium"
-                  >
-                    Yes, Delete
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {!showLogoutConfirm ? (
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-border/50 text-muted-foreground hover:bg-secondary/50 transition-colors"
-              >
-                <LogOut size={20} />
-                Sign Out
-              </button>
-            ) : (
-              <div className="rounded-xl border border-border/50 bg-secondary/30 p-4 space-y-3">
-                <p className="text-sm font-medium">Sign out?</p>
-                <p className="text-xs text-muted-foreground">
-                  You will need to login again to access your account.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowLogoutConfirm(false)}
-                    className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={logout}
-                    className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                  >
-                    Yes, Sign Out
-                  </button>
-                </div>
-              </div>
-            )}
+            <button
+              onClick={() => setModalOpen("delete")}
+              className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 size={20} />
+              Delete Account
+            </button>
+            <button
+              onClick={() => setModalOpen("logout")}
+              className="w-full flex items-center gap-3 py-3 px-4 rounded-xl border border-border/50 text-muted-foreground hover:bg-secondary/50 transition-colors"
+            >
+              <LogOut size={20} />
+              Sign Out
+            </button>
           </motion.div>
         </motion.div>
       </div>
 
-      {/* About / Privacy / Terms Modal */}
-      {activeModal && (() => {
-        const modalContent = {
+      {/* Delete Account Modal */}
+      <Modal
+        open={modalOpen === "delete"}
+        onClose={() => setModalOpen(null)}
+        title="Delete Account?"
+        variant="destructive"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive hover:bg-destructive/90 text-white"
+              onClick={handleDeleteAccount}
+            >
+              Yes, Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This action cannot be undone. Your data will be soft-deleted and you will be logged out.
+        </p>
+      </Modal>
+
+      {/* Sign Out Modal */}
+      <Modal
+        open={modalOpen === "logout"}
+        onClose={() => setModalOpen(null)}
+        title="Sign Out?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)}>
+              Cancel
+            </Button>
+            <Button className="flex-1" onClick={logout}>
+              Yes, Sign Out
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          You will need to login again to access your account.
+        </p>
+      </Modal>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        open={modalOpen === "edit"}
+        onClose={() => setModalOpen(null)}
+        title="Edit Profile"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" className="flex-1" onClick={() => setModalOpen(null)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleSaveProfile}
+              disabled={isSaving || !editForm.full_name.trim()}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Full Name</label>
+            <input
+              type="text"
+              value={editForm.full_name}
+              onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              className="w-full px-4 py-2 rounded-lg border border-border bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Profile Picture</label>
+            {editForm.profile_picture_url && (
+              <img
+                src={editForm.profile_picture_url}
+                alt="Preview"
+                className="w-20 h-20 rounded-full object-cover border-2 border-primary mx-auto"
+              />
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50 disabled:opacity-50"
+            >
+              {isUploading ? "Uploading..." : editForm.profile_picture_url ? "Change Photo" : "Upload Photo"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* About / Privacy / Terms Modals */}
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
+
+      {/* Report a Problem Modal */}
+      <Modal
+        open={modalOpen === "report"}
+        onClose={() => setModalOpen(null)}
+        title="Report a Problem"
+        size="md"
+        footer={
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => setModalOpen(null)}
+              className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground"
+            >
+              Tutup
+            </button>
+            <button
+              onClick={() => {
+                window.location.href = "mailto:support@ecoserve.id?subject=Report%20a%20Problem%20-%20EcoServe&body=Halo%20EcoServe%2C%0A%0ASaya%20ingin%20melaporkan%3A%0A%0A"
+                setModalOpen(null)
+              }}
+              className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+            >
+              Buka Email
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{`Mengalami masalah dengan EcoServe? Kami siap membantu!
+
+📧 Email Support
+Kirim laporan detail ke:
+support@ecoserve.id
+
+Sertakan informasi berikut:
+- Deskripsi masalah yang dialami
+- Langkah-langkah yang dilakukan sebelum masalah terjadi
+- Screenshot jika memungkinkan
+- ID pesanan (jika terkait dengan transaksi)
+
+⏱️ Response Time
+Kami akan merespons dalam 1x24 jam di hari kerja.
+
+🔒 Keamanan & Fraud
+Untuk melaporkan teknisi yang mencurigakan atau
+transaksi yang bermasalah, tambahkan subjek:
+[FRAUD REPORT] di email Anda.
+
+Terima kasih telah membantu kami menjadi lebih baik! 🌱`}</p>
+      </Modal>
+
+      {(["about", "privacy", "terms"] as const).map((key) => {
+        const content = {
           about: {
             title: "About EcoServe",
-            content: `EcoServe adalah platform infrastruktur cerdas yang dirancang untuk mendigitalkan ekonomi sirkular di Indonesia.
+            body: `EcoServe adalah platform infrastruktur cerdas yang dirancang untuk mendigitalkan ekonomi sirkular di Indonesia.
 
 Kami menjembatani konsumen dengan teknisi perbaikan ahli melalui lapisan kecerdasan buatan (AI) dan pemetaan geospasial presisi — memastikan setiap perangkat rusak mendapat penanganan terbaik dari teknisi terdekat yang tepat.
 
@@ -406,7 +571,7 @@ Ditenagai oleh Gemini AI untuk diagnostik cerdas, PostGIS untuk routing geospasi
           },
           privacy: {
             title: "Privacy Policy",
-            content: `EcoServe berkomitmen penuh untuk melindungi privasi dan keamanan data pengguna.
+            body: `EcoServe berkomitmen penuh untuk melindungi privasi dan keamanan data pengguna.
 
 📋 Data yang Kami Kumpulkan
 - Alamat email untuk autentikasi OTP
@@ -424,7 +589,7 @@ Kami tidak pernah menjual, menyewakan, atau membagikan data pribadi Anda kepada 
           },
           terms: {
             title: "Terms of Service",
-            content: `Dengan menggunakan EcoServe, Anda menyetujui seluruh ketentuan layanan berikut.
+            body: `Dengan menggunakan EcoServe, Anda menyetujui seluruh ketentuan layanan berikut.
 
 👤 Kewajiban Pengguna
 - Memberikan informasi kerusakan perangkat yang akurat dan jujur
@@ -442,94 +607,26 @@ Setiap transaksi divalidasi melalui sistem Anti-Fraud berlapis: GPS Lock, Photo 
 
 📅 EcoServe berhak mengubah ketentuan layanan ini sewaktu-waktu dengan pemberitahuan terlebih dahulu.`,
           },
-        }
-        const current = modalContent[activeModal]
+        }[key]
         return (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-4 sm:pb-0">
-            <div className="w-full max-w-lg rounded-2xl bg-card border border-border/50 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-                <h3 className="font-semibold">{current.title}</h3>
-                <button onClick={() => setActiveModal(null)} className="text-muted-foreground hover:text-foreground">
-                  ✕
-                </button>
-              </div>
-              <div className="px-6 py-4 max-h-96 overflow-y-auto">
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {current.content}
-                </p>
-              </div>
-              <div className="px-6 py-4 border-t border-border/50">
-                <button
-                  onClick={() => setActiveModal(null)}
-                  className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                >
-                  Got it
-                </button>
-              </div>
-            </div>
-          </div>
+          <Modal
+            key={key}
+            open={modalOpen === key}
+            onClose={() => setModalOpen(null)}
+            title={content.title}
+            size="md"
+            footer={
+              <Button className="flex-1" onClick={() => setModalOpen(null)}>
+                Got it
+              </Button>
+            }
+          >
+            <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+              {content.body}
+            </p>
+          </Modal>
         )
-      })()}
-
-      {/* Edit Profile Modal */}
-      {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border/50 p-6 space-y-4">
-            <h3 className="text-lg font-semibold">Edit Profile</h3>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name</label>
-              <input
-                type="text"
-                value={editForm.full_name}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Profile Picture</label>
-              {editForm.profile_picture_url && (
-                <img
-                  src={editForm.profile_picture_url}
-                  alt="Preview"
-                  className="w-20 h-20 rounded-full object-cover border-2 border-primary mx-auto"
-                />
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="w-full py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary/50 disabled:opacity-50"
-              >
-                {isUploading ? "Uploading..." : editForm.profile_picture_url ? "Change Photo" : "Upload Photo"}
-              </button>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                disabled={isSaving || !editForm.full_name.trim()}
-                className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      })}
     </div>
   )
 }

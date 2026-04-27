@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
+import { ToastNotification } from "@/components/ui/toast-notification"
+import { useToast } from "@/hooks/useToast"
 import Link from "next/link"
 
 export default function ReportDamagePage() {
@@ -16,6 +18,7 @@ export default function ReportDamagePage() {
   const [description, setDescription] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const { toasts, removeToast, toast } = useToast()
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -72,14 +75,20 @@ export default function ReportDamagePage() {
       })
 
       if (response.ok) {
-        router.push("/consumer/orders")
+        toast.success("Order submitted!", "Technicians in your area will be notified.")
+        setTimeout(() => {
+          router.push("/consumer/orders")
+        }, 1500)
       } else {
         const data = await response.json()
-        setError(data.message || "Failed to submit order")
+        const msg = data.message || "Failed to submit order"
+        setError(msg)
+        toast.error("Failed to submit", msg)
       }
     } catch (err) {
       console.error(err)
       setError("Failed to submit. Please try again.")
+      toast.error("Failed to submit", "Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -95,6 +104,7 @@ export default function ReportDamagePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
       {/* Header */}
       <div className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
         <div className="px-4 py-4 flex items-center gap-3">

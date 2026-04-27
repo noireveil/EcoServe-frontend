@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Leaf, Cpu, Smartphone, Wrench } from "lucide-react"
+import Image from "next/image"
+import { ArrowLeft, Smartphone, Wrench } from "lucide-react"
 
 import { apiFetch } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -120,7 +121,7 @@ export function AuthForm() {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/auth/request`,
+        "/api/users/auth/request",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -162,7 +163,7 @@ export function AuthForm() {
 
       // Step 1: verify OTP
       const verifyResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/auth/verify`,
+        "/api/users/auth/verify",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -183,7 +184,7 @@ export function AuthForm() {
 
       // Step 2: ambil profile user untuk dapat role
       const meResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/me`,
+        "/api/users/me",
         {
           method: "GET",
           credentials: "include",
@@ -203,7 +204,7 @@ export function AuthForm() {
       if (activeTab === "register" && role === "technician") {
         if (!userId) throw new Error("Failed to get User ID")
 
-        const techResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/technicians/`, {
+        const techResponse = await fetch("/api/technicians/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -279,69 +280,15 @@ export function AuthForm() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-background">
-      {/* Background pattern */}
-      <div className="absolute inset-0">
-        {/* Gradient overlay - Fixed Tailwind Warning */}
-        <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5" />
-
-        {/* Circuit pattern */}
-        <svg
-          className="absolute inset-0 h-full w-full opacity-[0.03]"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <pattern
-              id="circuit-pattern"
-              x="0"
-              y="0"
-              width="100"
-              height="100"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M10 10h80v80H10z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="0.5"
-              />
-              <circle cx="10" cy="10" r="3" fill="currentColor" />
-              <circle cx="90" cy="10" r="3" fill="currentColor" />
-              <circle cx="10" cy="90" r="3" fill="currentColor" />
-              <circle cx="90" cy="90" r="3" fill="currentColor" />
-              <circle cx="50" cy="50" r="5" fill="currentColor" />
-              <path
-                d="M10 10L50 50M90 10L50 50M10 90L50 50M90 90L50 50"
-                stroke="currentColor"
-                strokeWidth="0.5"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#circuit-pattern)" />
-        </svg>
-
-        {/* Floating leaf decorations */}
-        <motion.div
-          className="absolute left-[10%] top-[20%] text-primary/20"
-          animate={{ y: [0, -20, 0], rotate: [0, 10, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Leaf className="h-16 w-16" />
-        </motion.div>
-        <motion.div
-          className="absolute right-[15%] top-[30%] text-primary/15"
-          animate={{ y: [0, 15, 0], rotate: [0, -15, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        >
-          <Leaf className="h-12 w-12" />
-        </motion.div>
-        <motion.div
-          className="absolute bottom-[25%] left-[20%] text-primary/10"
-          animate={{ y: [0, -10, 0], rotate: [0, 5, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        >
-          <Cpu className="h-10 w-10" />
-        </motion.div>
+    <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: "#ffffff", color: "#0D1117" }}>
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "radial-gradient(60% 50% at 20% 30%, rgba(126,217,87,0.18), transparent 70%), radial-gradient(50% 50% at 90% 20%, rgba(12,192,223,0.14), transparent 70%)",
+          }}
+        />
       </div>
 
       {/* Back to landing link */}
@@ -366,9 +313,7 @@ export function AuthForm() {
             {/* Logo & Tagline */}
             <div className="mb-8 text-center">
               <div className="mb-3 flex items-center justify-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                  <Leaf className="h-6 w-6 text-primary-foreground" />
-                </div>
+                <Image src="/icons/logo.png" alt="EcoServe" width={40} height={40} priority className="object-contain" />
                 <span className="text-2xl font-bold text-foreground">EcoServe</span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -571,7 +516,7 @@ export function AuthForm() {
                             className={cn(
                               "relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
                               role === "customer"
-                                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(126,217,87,0.3)]"
                                 : "border-border bg-secondary/30 hover:border-primary/50"
                             )}
                           >
@@ -596,7 +541,7 @@ export function AuthForm() {
                             className={cn(
                               "relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
                               role === "technician"
-                                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(126,217,87,0.3)]"
                                 : "border-border bg-secondary/30 hover:border-primary/50"
                             )}
                           >
@@ -728,7 +673,7 @@ export function AuthForm() {
 
           {/* Competition credit */}
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Created for the EcoServe Challenge 2025
+            EcoServe. Built for I/O Festival 2026.
           </p>
         </motion.div>
       </div>

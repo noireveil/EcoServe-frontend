@@ -1,44 +1,37 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 import { motion, AnimatePresence } from "framer-motion"
-import { MapPin, Camera, MapPinIcon, Trash2, Leaf, CheckCircle } from "lucide-react"
+import { MapPin, Camera, MapPinIcon, Trash2, Leaf, CheckCircle, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ToastNotification } from "@/components/ui/toast-notification"
+import { useToast } from "@/hooks/useToast"
+import { ChatDrawer } from "@/components/ui/chat-drawer"
 import { cn } from "@/lib/utils"
 
 type Tab = "active" | "completed" | "all"
 
 export default function TechnicianOrdersPage() {
-  const { isLoading: authLoading } = useAuth("technician")
+  const { user, isLoading: authLoading } = useAuth("technician")
   const router = useRouter()
-  const [orders, setOrders] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { toasts, removeToast, toast } = useToast()
+  const { data: orders = [], isLoading: ordersLoading, mutate: mutateOrders } = useSWR(
+    "/api/orders/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  )
   const [activeTab, setActiveTab] = useState<Tab>("active")
   const [completingId, setCompletingId] = useState<string | null>(null)
+  const [chatOrderId, setChatOrderId] = useState<string | null>(null)
   const [photoUrl, setPhotoUrl] = useState("")
   const [serviceFee, setServiceFee] = useState<number>(0)
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await apiFetch("/api/orders/")
-        if (response.ok) {
-          const data = await response.json()
-          setOrders(data.data || [])
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchOrders()
-  }, [])
 
   const handleNavigate = (order: any) => {
     router.push(`/technician/map?lat=${order.CustomerLatitude}&lng=${order.CustomerLongitude}&orderId=${order.ID}`)
@@ -64,25 +57,23 @@ export default function TechnicianOrdersPage() {
         method: "PUT",
       })
       if (response.ok) {
-        const ordersResponse = await apiFetch("/api/orders/")
-        if (ordersResponse.ok) {
-          const data = await ordersResponse.json()
-          setOrders(data.data || [])
-        }
+        await mutateOrders()
+        toast.success("Order accepted!", "Navigate to customer location.")
       } else {
         const data = await response.json()
         console.error("Failed to accept:", data)
+        toast.error("Failed to accept", "Please try again.")
       }
     } catch (err) {
       console.error("Accept error:", err)
+      toast.error("Failed to accept", "Please try again.")
     }
   }
 
   const handleCancel = async (orderId: string) => {
-    if (!confirm("Cancel this order?")) return
-
     try {
-      setOrders(prev => prev.filter(o => o.ID !== orderId))
+      await mutateOrders()
+      toast.success("Order cancelled", "The order has been removed.")
     } catch (err) {
       console.error("Cancel error:", err)
     }
@@ -90,7 +81,7 @@ export default function TechnicianOrdersPage() {
 
   const handleComplete = async (order: any) => {
     if (!photoUrl) {
-      alert("Photo URL wajib diisi untuk anti-fraud")
+      toast.warning("Photo required", "Upload a photo for anti-fraud verification.")
       return
     }
 
@@ -134,30 +125,29 @@ export default function TechnicianOrdersPage() {
       })
 
       if (response.ok) {
-        const ordersResponse = await apiFetch("/api/orders/")
-        if (ordersResponse.ok) {
-          const data = await ordersResponse.json()
-          setOrders(data.data || [])
-        }
+        await mutateOrders()
         setPhotoUrl("")
+        toast.success("Order completed!", "Great work. Earnings have been updated.")
       } else {
         const data = await response.json()
         console.error("Failed to complete:", data)
+        toast.error("Failed to complete", "Please try again.")
       }
     } catch (err) {
       console.error("Complete error:", err)
+      toast.error("Failed to complete", "Please try again.")
     } finally {
       setCompletingId(null)
     }
   }
 
-  const pendingJobs = orders.filter(o => o.Status === "PENDING")
-  const acceptedJobs = orders.filter(o =>
+  const pendingJobs = orders.filter((o: any) => o.Status === "PENDING")
+  const acceptedJobs = orders.filter((o: any) =>
     o.Status === "ACCEPTED" || o.Status === "IN_PROGRESS"
   )
-  const completedJobs = orders.filter(o => o.Status === "COMPLETED")
+  const completedJobs = orders.filter((o: any) => o.Status === "COMPLETED")
 
-  if (authLoading || isLoading) {
+  if (authLoading || ordersLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-primary">Loading...</div>
@@ -166,10 +156,11 @@ export default function TechnicianOrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-background pb-4">
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-6">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 py-6">
           <h1 className="text-2xl font-bold">My Jobs</h1>
           <p className="text-sm text-muted-foreground mt-1">{completedJobs.length} repairs completed</p>
 
@@ -308,13 +299,38 @@ export default function TechnicianOrdersPage() {
                           />
                         </label>
                       </div>
-                      <input
-                        type="number"
-                        placeholder="Harga jasa (Rp)"
-                        value={serviceFee}
-                        onChange={(e) => setServiceFee(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-sm mb-2"
-                      />
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Total Biaya Servis (Rp)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Contoh: 150000"
+                          value={serviceFee}
+                          onChange={(e) => setServiceFee(Number(e.target.value))}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        {serviceFee > 0 && (
+                          <div className="flex justify-between text-xs mt-1">
+                            <span className="text-muted-foreground">Estimasi pendapatan bersih (90%):</span>
+                            <span className="text-[#5fc036] font-semibold">
+                              Rp {(serviceFee * 0.9).toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                        )}
+                        {serviceFee > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            * Komisi platform 10% = Rp {(serviceFee * 0.1).toLocaleString("id-ID")}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setChatOrderId(order.ID)}
+                        className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 mb-2 rounded-lg border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        Chat
+                      </button>
                       <button
                         onClick={() => handleComplete(order)}
                         disabled={completingId === order.ID}
@@ -442,6 +458,13 @@ export default function TechnicianOrdersPage() {
                               onChange={(e) => setServiceFee(Number(e.target.value))}
                               className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/50 text-sm mb-2"
                             />
+                            <button
+                              onClick={() => setChatOrderId(order.ID)}
+                              className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 mb-2 rounded-lg border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              Chat
+                            </button>
                             <button onClick={() => handleComplete(order)} disabled={completingId === order.ID} className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                               {completingId === order.ID ? "Completing..." : "Complete Job"}
                             </button>
@@ -497,6 +520,13 @@ export default function TechnicianOrdersPage() {
           </AnimatePresence>
         </div>
       </div>
+      <ChatDrawer
+        orderId={chatOrderId || ""}
+        currentUserId={user?.ID || ""}
+        currentUserRole="technician"
+        open={!!chatOrderId}
+        onClose={() => setChatOrderId(null)}
+      />
     </div>
   )
 }

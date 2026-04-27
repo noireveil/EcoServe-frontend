@@ -1,86 +1,128 @@
-"use client";
+"use client"
 
-import { motion } from "framer-motion";
-import { MessageSquare, Users, LineChart } from "lucide-react";
-
-const steps = [
-  {
-    number: "01",
-    title: "Describe the Problem",
-    description: "AI analyzes your device symptoms and provides an initial diagnosis with confidence scoring.",
-    icon: MessageSquare,
-  },
-  {
-    number: "02",
-    title: "Get Matched",
-    description: "Our geospatial system finds and dispatches the nearest verified technician to your location.",
-    icon: Users,
-  },
-  {
-    number: "03",
-    title: "Track the Impact",
-    description: "See your CO₂ savings in real-time using EPA WARM methodology. No greenwashing.",
-    icon: LineChart,
-  },
-];
+const Icon = {
+  Leaf: ({ size = 18 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.8 2c1 5 .5 10-2.4 14a7 7 0 0 1-6.4 4Z"/>
+      <path d="M2 22s.5-3.5 4-7"/>
+    </svg>
+  ),
+  Camera: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+  ),
+  Map: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2Z"/>
+      <path d="M9 3v16M15 5v16"/>
+    </svg>
+  ),
+  Check: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5"/>
+    </svg>
+  ),
+  Spark: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>
+    </svg>
+  ),
+  Pin: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  ),
+  Globe: ({ size = 22 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>
+    </svg>
+  ),
+  Arrow: () => <span aria-hidden="true">→</span>,
+  Twitter: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2H21l-6.55 7.49L22 22h-6.83l-4.74-6.2L4.8 22H2l7.04-8.05L2 2h6.91l4.3 5.69L18.24 2Zm-1.2 18h1.6L7.04 4h-1.7l11.7 16Z"/></svg>
+  ),
+  Instagram: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+  ),
+  LinkedIn: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33 0-3.04-1.85-3.04s-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43A2.06 2.06 0 1 1 5.34 3.3a2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45Z"/></svg>
+  ),
+};
 
 export function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="relative py-24 lg:py-32 bg-card overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-            How <span className="text-primary">EcoServe</span> Works
-          </h2>
-          <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
-            Three simple steps to repair your device and save the planet
-          </p>
-        </motion.div>
-
-        <div className="relative">
-          {/* Connecting line */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent -translate-y-1/2" />
-
-          <div className="grid lg:grid-cols-3 gap-8 lg:gap-12">
-            {steps.map((step, index) => (
-              <motion.div
-                key={step.number}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                className="relative"
-              >
-                <div className="text-center">
-                  {/* Step number with icon */}
-                  <div className="relative inline-flex items-center justify-center mb-6">
-                    <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl" />
-                    <div className="relative w-20 h-20 rounded-full bg-background border-2 border-primary flex items-center justify-center">
-                      <step.icon className="w-8 h-8 text-primary" />
-                    </div>
-                    <span className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
-                      {step.number.replace("0", "")}
-                    </span>
-                  </div>
-
-                  <h3 className="text-xl font-bold text-foreground mb-3">
-                    {step.title}
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+     <section className="howto" id="howto">
+      <div className="container">
+        <div className="howto-head">
+          <div>
+            <span className="section-label">Bagaimana EcoServe Bekerja</span>
+            <h2>
+              Tiga langkah dari rusak <span className="serif">menjadi pulih</span>.
+            </h2>
           </div>
+          <p>
+            Tidak perlu antri, tinggal terima kunjungan teknisi, Selesai.
+            Dengan dampak lingkungan terukur di setiap perbaikan.
+          </p>
+        </div>
+
+        <div className="steps3">
+          <article className="step3">
+            <div className="step3-top">
+              <span className="step3-num">01 / Lapor</span>
+              <span className="step3-icon"><Icon.Camera /></span>
+            </div>
+            <h3>Foto & Laporkan</h3>
+            <p>
+              Buka aplikasi, foto perangkat yang rusak, dan tuliskan keluhan singkat. AI akan
+              langsung menganalisis kerusakannya.
+            </p>
+            <div className="step3-vis">
+              <div className="row"><span>device</span><span className="v">smartphone</span></div>
+              <div className="row"><span>damage</span><span className="v green">screen_crack</span></div>
+              <div className="row"><span>eligible repair</span><span className="v green">94.1%</span></div>
+            </div>
+          </article>
+
+          <article className="step3">
+            <div className="step3-top">
+              <span className="step3-num">02 / Match</span>
+              <span className="step3-icon"><Icon.Map /></span>
+            </div>
+            <h3>Teknisi Datang</h3>
+            <p>
+              GPS routing memilih teknisi bersertifikat terdekat. Profil, harga, dan ETA muncul
+              real-time. Kamu yang tetap pegang kendali.
+            </p>
+            <div className="step3-vis">
+              <div className="row"><span>nearest</span><span className="v">Budi S. · 0.8 km</span></div>
+              <div className="row"><span>eta</span><span className="v aqua">12 min</span></div>
+              <div className="row"><span>certified</span><span className="v">Level 3</span></div>
+            </div>
+          </article>
+
+          <article className="step3">
+            <div className="step3-top">
+              <span className="step3-num">03 / Tuntas</span>
+              <span className="step3-icon"><Icon.Check /></span>
+            </div>
+            <h3>Selesai & Tercatat</h3>
+            <p>
+              Perbaikan selesai di lokasi. Sertifikat digital dengan jumlah CO₂ yang dihindari
+              tersimpan di profilmu, siap untuk laporan dampak.
+            </p>
+            <div className="step3-vis">
+              <div className="row"><span>status</span><span className="v green">repaired</span></div>
+              <div className="row"><span>CO₂e saved</span><span className="v green">−71.4 kg</span></div>
+              <div className="row"><span>certificate</span><span className="v">issued</span></div>
+            </div>
+          </article>
         </div>
       </div>
     </section>
-  );
+  )
 }

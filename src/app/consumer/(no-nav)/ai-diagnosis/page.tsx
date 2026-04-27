@@ -1,29 +1,30 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Camera, Plus, Wand2, Brain, MapPin, Star, AlertCircle, CheckCircle2, Zap } from 'lucide-react'
+import { ArrowLeft, Camera, Plus, Wand2, Brain, MapPin, AlertCircle, CheckCircle2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ToastNotification } from '@/components/ui/toast-notification'
+import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils'
 import { apiFetch } from '@/lib/api'
 
 type DiagnosisState = 'input' | 'loading' | 'high-confidence' | 'low-confidence'
 
 export default function AIDiagnosisPage() {
-  const { user, isLoading: authLoading } = useAuth("customer")
+  const { isLoading: authLoading } = useAuth("customer")
   const router = useRouter()
   const [state, setState] = useState<DiagnosisState>('input')
   const [selectedDevice, setSelectedDevice] = useState('')
   const [selectedDeviceObj, setSelectedDeviceObj] = useState<any>(null)
   const [description, setDescription] = useState('')
-  const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [photoBase64, setPhotoBase64] = useState<string>('')
   const [diagnosisResult, setDiagnosisResult] = useState<any>(null)
   const [devices, setDevices] = useState<any[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toasts, removeToast, toast } = useToast()
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -42,18 +43,19 @@ export default function AIDiagnosisPage() {
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      setPhoto(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setPhotoBase64(reader.result as string)
     }
+    reader.readAsDataURL(file)
   }
 
   const handleAnalyze = async () => {
-    if (!description.trim()) return
+    if (!description.trim() && !photoBase64) {
+      toast.error("Input required", "Please describe the problem or upload a photo")
+      return
+    }
     setState('loading')
 
     try {
@@ -76,14 +78,16 @@ export default function AIDiagnosisPage() {
       const response = await apiFetch("/api/chatbot/triage", {
         method: "POST",
         body: JSON.stringify({
-          message: description,
+          message: description || "Analyze this device from the photo",
           latitude,
           longitude,
+          ...(photoBase64 && { photo: photoBase64 }),
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to analyze")
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.message || "Failed to analyze")
       }
 
       const data = await response.json()
@@ -100,6 +104,7 @@ export default function AIDiagnosisPage() {
     } catch (err) {
       console.error("Triage error:", err)
       setState("input")
+      toast.error("Analysis failed", "Gagal memproses diagnosis AI. Please try again.")
     }
   }
 
@@ -132,13 +137,16 @@ export default function AIDiagnosisPage() {
       })
 
       if (response.ok) {
+        toast.success("Technician booked!", "Your order has been created.")
         router.push("/consumer/orders")
       } else {
         const text = await response.text()
         console.error("Failed to book, status:", response.status, "body:", text)
+        toast.error("Failed to book", "Please try again.")
       }
     } catch (err) {
       console.error("Book technician error:", err)
+      toast.error("Failed to book", "Please try again.")
     }
   }
 
@@ -152,6 +160,7 @@ export default function AIDiagnosisPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ToastNotification toasts={toasts} onRemove={removeToast} />
       {/* Header */}
       <div className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-2xl px-4 py-4 flex items-center gap-3">
@@ -216,65 +225,57 @@ export default function AIDiagnosisPage() {
               {/* Describe Problem */}
               <div className="space-y-3">
                 <label className="block text-sm font-medium pb-1">Describe the Problem</label>
-                <div className="relative">
+                <div>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe what's wrong... e.g. my phone won't turn on, screen is cracked, battery drains fast"
+                    maxLength={500}
                     className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground resize-none min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                    {description.length}/500
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Describe the problem or upload a photo for AI analysis</span>
+                    <span>{description.length}/500</span>
                   </div>
                 </div>
               </div>
 
               {/* Photo Upload */}
               <div className="space-y-3">
-                <label className="block text-sm font-medium pb-1">Add Photo (Optional)</label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-                {photoPreview ? (
-                  <div className="relative rounded-lg overflow-hidden border border-border">
-                    <img src={photoPreview} alt="Uploaded" className="w-full h-auto" />
+                <label className="block text-sm font-medium pb-1">Try it with Photo</label>
+                {photoBase64 ? (
+                  <div className="relative">
+                    <img src={photoBase64} alt="Device photo" className="w-full h-90 object-cover rounded-xl" />
                     <button
-                      onClick={() => {
-                        setPhoto(null)
-                        setPhotoPreview('')
-                      }}
-                      className="absolute top-2 right-2 bg-destructive/90 text-destructive-foreground rounded-full p-2 hover:bg-destructive"
+                      onClick={() => setPhotoBase64('')}
+                      className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"
                     >
-                      ✕
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-border rounded-lg p-6 hover:bg-secondary/50 transition-colors flex flex-col items-center gap-2 text-center"
-                  >
-                    <Camera className="w-6 h-6 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-sm">Upload photo</p>
-                      <p className="text-xs text-muted-foreground">Tap to capture or upload</p>
-                    </div>
-                  </button>
+                  <label className="flex flex-col items-center gap-2 p-8 border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/30">
+                    <Camera className="w-8 h-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Tap to upload photo (optional)</p>
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
                 )}
               </div>
 
               {/* Analyze Button */}
-              <Button
+              <button
                 onClick={handleAnalyze}
-                disabled={!description.trim()}
-                className="w-full bg-primary hover:bg-primary/90 h-12 gap-2 text-base font-semibold"
+                disabled={!description.trim() && !photoBase64}
+                className={cn(
+                  "w-full py-4 rounded-xl font-semibold text-base transition-all flex items-center justify-center gap-2",
+                  description.trim() || photoBase64
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                )}
               >
                 <Wand2 className="w-5 h-5" />
                 Analyze with AI
-              </Button>
+              </button>
               <p className="text-xs text-muted-foreground text-center">Powered by Gemini AI</p>
             </motion.div>
           )}
@@ -324,7 +325,7 @@ export default function AIDiagnosisPage() {
               <motion.div
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
-                className="rounded-lg bg-gradient-to-br from-green-900/30 to-emerald-900/20 border border-green-500/30 p-6 space-y-4"
+                className="rounded-lg bg-gradient-to-br from-[#4a9a2e]/30 to-[#5cb83a]/20 border border-[#7ed957]/30 p-6 space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
@@ -461,24 +462,29 @@ export default function AIDiagnosisPage() {
                       {diagnosisResult?.technicians?.map((tech: any) => (
                         <div key={tech.ID} className="rounded-lg border border-border bg-card p-4 space-y-4">
                           <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
-                              {tech.User?.FullName
-                                ? tech.User.FullName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-                                : "T?"}
-                            </div>
+                            {tech.User?.ProfilePictureURL ? (
+                              <img
+                                src={tech.User.ProfilePictureURL}
+                                alt={tech.User?.FullName}
+                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                {tech.User?.FullName
+                                  ?.split(" ").map((n: string) => n[0])
+                                  .join("").toUpperCase().slice(0, 2) || "T?"}
+                              </div>
+                            )}
 
                             <div className="flex-1">
                               <p className="font-semibold">{tech.User?.FullName || "Technician"}</p>
                               <p className="text-xs text-muted-foreground">
-                                {tech.Rating > 0 ? `⭐ ${tech.Rating}` : "New Technician"}
-                                {tech.ExperienceYears > 0 && ` • ${tech.ExperienceYears} years exp`}
+                                {tech.Specialization || "General Repair"}
+                                {tech.ExperienceYears > 0 ? ` • ${tech.ExperienceYears} yr exp` : ""}
+                                {tech.Rating > 0 ? ` • ⭐ ${tech.Rating}` : ""}
                               </p>
                             </div>
                           </div>
-
-                          <p className="text-sm text-muted-foreground">
-                            🔧 {tech.Specialization || "General Repair"}
-                          </p>
 
                           <button
                             onClick={() => handleBookTechnician(tech.ID)}

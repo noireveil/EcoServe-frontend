@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
-import { apiFetch } from "@/lib/api"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 import { motion } from "framer-motion"
 import {
   ChevronLeft,
@@ -18,49 +19,57 @@ import { Badge } from "@/components/ui/badge"
 
 export default function EarningsPage() {
   const { isLoading: authLoading } = useAuth("technician")
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3))
-  const [earnings, setEarnings] = useState<any>(null)
-  const [performance, setPerformance] = useState<any>(null)
-  const [orders, setOrders] = useState<any[]>([])
+  const [selectedMonth, setSelectedMonth] = useState(0)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [earningsResponse, perfResponse, ordersResponse] = await Promise.all([
-          apiFetch("/api/technicians/earnings"),
-          apiFetch("/api/technicians/performance"),
-          apiFetch("/api/orders/")
-        ])
-        if (earningsResponse.ok) {
-          const data = await earningsResponse.json()
-          setEarnings(data.data)
-        }
-        if (perfResponse.ok) {
-          const data = await perfResponse.json()
-          setPerformance(data.data)
-        }
-        if (ordersResponse.ok) {
-          const data = await ordersResponse.json()
-          setOrders(data.data || [])
-        }
-      } catch (err) {
-        console.error(err)
+  const { data: orders = [] } = useSWR(
+    "/api/orders/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+
+  const { data: earnings } = useSWR(
+    "/api/technicians/earnings",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+
+  const { data: performance } = useSWR(
+    "/api/technicians/performance",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+
+  const getMonthOptions = () => {
+    const now = new Date()
+    return [0, -1, -2].map(offset => {
+      const date = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+      return {
+        offset,
+        label: date.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
+        month: date.getMonth() + 1,
+        year: date.getFullYear(),
       }
-    }
-    fetchData()
-  }, [])
-
-  const monthYear = currentMonth.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })
-
-  const handlePrevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))
+    })
   }
 
-  const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))
+  const monthOptions = getMonthOptions()
+  const currentMonthOption = monthOptions.find(m => m.offset === selectedMonth)
+
+  const filteredOrders = orders.filter(o => {
+    if (o.Status !== "COMPLETED") return false
+    const orderDate = new Date(o.UpdatedAt)
+    const selected = new Date()
+    selected.setMonth(selected.getMonth() + selectedMonth)
+    return (
+      orderDate.getMonth() === selected.getMonth() &&
+      orderDate.getFullYear() === selected.getFullYear()
+    )
+  })
+
+  const monthlyStats = {
+    totalRepairs: filteredOrders.length,
+    totalCO2: filteredOrders.reduce((sum, o) => sum + (o.EWasteSavedKg || 0), 0),
+    totalFee: filteredOrders.reduce((sum, o) => sum + (o.NetTechnicianFee || 0), 0),
   }
 
   if (authLoading) {
@@ -72,43 +81,45 @@ export default function EarningsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-6">
-          <h1 className="text-2xl font-bold mb-2">My Earnings</h1>
-          <p className="text-muted-foreground text-sm mb-4">{monthYear}</p>
-
-          {/* Month Navigator */}
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePrevMonth}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm font-medium">{monthYear}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNextMonth}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="sticky top-0 z-10 border-b border-border/30 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 py-6">
+          <h1 className="text-2xl font-bold">My Earnings</h1>
         </div>
 
         <div className="px-4 space-y-6 py-6">
+          {/* Month Selector */}
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-lg">Earnings</h2>
+            <div className="flex items-center gap-1 bg-secondary rounded-xl p-1">
+              <button
+                onClick={() => setSelectedMonth(prev => Math.max(prev - 1, -2))}
+                disabled={selectedMonth === -2}
+                className="p-1.5 rounded-lg disabled:opacity-30 hover:bg-card transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-medium px-2 min-w-25 text-center">
+                {currentMonthOption?.label}
+              </span>
+              <button
+                onClick={() => setSelectedMonth(prev => Math.min(prev + 1, 0))}
+                disabled={selectedMonth === 0}
+                className="p-1.5 rounded-lg disabled:opacity-30 hover:bg-card transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           {/* Earnings Summary Card */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-background p-6">
+            <Card className="relative overflow-hidden border-0 bg-linear-to-br from-primary/20 via-primary/10 to-background p-6">
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute top-0 right-0 w-40 h-40 bg-primary rounded-full blur-3xl" />
               </div>
@@ -116,23 +127,21 @@ export default function EarningsPage() {
               <div className="relative z-10">
                 <p className="text-muted-foreground text-sm mb-2">Total This Month</p>
                 <h2 className="text-3xl font-bold mb-6">
-                  {earnings?.this_month_earnings
-                    ? `Rp ${earnings.this_month_earnings.toLocaleString("id-ID")}`
-                    : "Rp 0"}
+                  Rp {monthlyStats.totalFee.toLocaleString("id-ID")}
                 </h2>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Repairs</p>
-                    <p className="text-lg font-semibold">{performance?.total_repairs || 0}</p>
+                    <p className="text-lg font-semibold">{monthlyStats.totalRepairs}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Completed</p>
-                    <p className="text-lg font-semibold">{earnings?.total_completed || 0}</p>
+                    <p className="text-lg font-semibold">{monthlyStats.totalRepairs}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">CO₂ Saved</p>
-                    <p className="text-lg font-semibold">{performance?.co2_saved_kg || 0} kg</p>
+                    <p className="text-lg font-semibold">{monthlyStats.totalCO2.toFixed(2)} kg</p>
                   </div>
                 </div>
               </div>
@@ -148,7 +157,7 @@ export default function EarningsPage() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
               <div className="space-y-4">
-                {orders.filter(o => o.Status === "COMPLETED").map((order, idx) => (
+                {filteredOrders.map((order, idx) => (
                   <motion.div
                     key={order.ID}
                     initial={{ opacity: 0, x: -20 }}
@@ -180,8 +189,10 @@ export default function EarningsPage() {
                     </Card>
                   </motion.div>
                 ))}
-                {orders.filter(o => o.Status === "COMPLETED").length === 0 && (
-                  <p className="text-muted-foreground text-sm text-center py-4">No completed orders yet</p>
+                {filteredOrders.length === 0 && (
+                  <p className="text-center text-muted-foreground text-sm py-8">
+                    Tidak ada transaksi di {currentMonthOption?.label}
+                  </p>
                 )}
               </div>
             </div>
