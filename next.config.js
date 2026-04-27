@@ -5,7 +5,16 @@ const withPWA = require("next-pwa")({
   disable: process.env.NODE_ENV === "development",
 })
 
-module.exports = withPWA({
-  reactStrictMode: true,
-  turbopack: {},
-})
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "https://ecoserve-api.onrender.com/api/:path*",
+      },
+    ]
+  },
+}
+
+module.exports = withPWA(nextConfig)

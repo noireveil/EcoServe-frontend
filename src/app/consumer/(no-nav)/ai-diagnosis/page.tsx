@@ -325,7 +325,7 @@ export default function AIDiagnosisPage() {
               <motion.div
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
-                className="rounded-lg bg-gradient-to-br from-green-900/30 to-emerald-900/20 border border-green-500/30 p-6 space-y-4"
+                className="rounded-lg bg-gradient-to-br from-[#4a9a2e]/30 to-[#5cb83a]/20 border border-[#7ed957]/30 p-6 space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">

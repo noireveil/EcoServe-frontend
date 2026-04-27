@@ -11,7 +11,9 @@ export function ThemeToggle() {
     setMounted(true)
   }, [])
 
-  if (!mounted) return null
+  if (!mounted) return (
+    <div className="flex items-center justify-between w-full py-3 px-4 rounded-xl border border-border/50 bg-card animate-pulse h-15" />
+  )
 
   return (
     <button

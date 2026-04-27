@@ -3,12 +3,9 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import {
@@ -41,29 +38,17 @@ export default function TechnicianProfilePage() {
   const { user, isLoading: authLoading } = useAuth("technician")
   const [isOnline, setIsOnline] = useState(false)
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false)
-  const [performance, setPerformance] = useState<any>(null)
+  const { data: performance } = useSWR(
+    "/api/technicians/performance",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
   const [editForm, setEditForm] = useState({ full_name: "", profile_picture_url: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [modalOpen, setModalOpen] = useState<"about" | "privacy" | "terms" | "edit" | "delete" | "logout" | "report" | null>(null)
   const { toasts, removeToast, toast } = useToast()
-
-  useEffect(() => {
-    const fetchPerformance = async () => {
-      try {
-        const response = await apiFetch("/api/technicians/performance")
-        if (response.ok) {
-          const data = await response.json()
-          console.log("Performance data:", JSON.stringify(data, null, 2))
-          setPerformance(data.data || null)
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    fetchPerformance()
-  }, [])
 
   useEffect(() => {
     const fetchAvailability = async () => {

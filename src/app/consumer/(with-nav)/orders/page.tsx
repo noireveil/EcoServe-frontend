@@ -1,14 +1,18 @@
 "use client"
 
-import { useEffect, useState, Fragment } from "react"
+import { useState, Fragment } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   AlertCircle,
   MessageCircle,
+  MapPin,
+  CheckCircle,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -71,8 +75,8 @@ function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelCo
 
         {order.Technician ? (
           <div className="flex items-center gap-2 py-2 border-t border-border/30">
-            <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-              <span className="text-xs font-semibold text-emerald-400">
+            <div className="h-8 w-8 rounded-full bg-[#7ed957]/20 flex items-center justify-center shrink-0">
+              <span className="text-xs font-semibold text-[#5fc036]">
                 {order.Technician?.User?.FullName
                   ?.split(" ")
                   .map((n: string) => n[0])
@@ -138,56 +142,56 @@ function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelCo
         )}
 
         {/* Action buttons */}
-        <div className="flex gap-2 flex-col">
-          {order.Status === "PENDING" && (
-            showCancelConfirm === order.ID ? (
-              <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-3 space-y-2 mt-2">
-                <p className="text-sm font-medium text-destructive">Cancel this order?</p>
-                <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowCancelConfirm(null)}
-                    className="flex-1 py-1.5 rounded-lg border border-border text-xs text-muted-foreground"
-                  >
-                    No, Keep
-                  </button>
-                  <button
-                    onClick={() => onCancel(order.ID)}
-                    className="flex-1 py-1.5 rounded-lg bg-destructive text-white text-xs font-medium"
-                  >
-                    Yes, Cancel
-                  </button>
-                </div>
+        {order.Status === "PENDING" && (
+          showCancelConfirm === order.ID ? (
+            <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-3 space-y-2 mt-2">
+              <p className="text-sm font-medium text-destructive">Cancel this order?</p>
+              <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCancelConfirm(null)}
+                  className="flex-1 py-1.5 rounded-lg border border-border text-xs text-muted-foreground"
+                >
+                  No, Keep
+                </button>
+                <button
+                  onClick={() => onCancel(order.ID)}
+                  className="flex-1 py-1.5 rounded-lg bg-destructive text-white text-xs font-medium"
+                >
+                  Yes, Cancel
+                </button>
               </div>
-            ) : (
-              <button
-                onClick={() => setShowCancelConfirm(order.ID)}
-                className="px-3 py-1.5 rounded-lg border border-destructive/50 text-destructive text-xs hover:bg-destructive/10"
-              >
-                Cancel Order
-              </button>
-            )
-          )}
-          {order.Status === "ACCEPTED" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 border-primary/50 text-primary hover:bg-primary/10"
-              onClick={() => onTrackMap(order)}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowCancelConfirm(order.ID)}
+              className="px-3 py-1.5 rounded-lg border border-destructive/50 text-destructive text-xs hover:bg-destructive/10"
             >
-              Track on Map
-            </Button>
-          )}
-          {(order.Status === "ACCEPTED" || order.Status === "IN_PROGRESS") && (
+              Cancel Order
+            </button>
+          )
+        )}
+
+        {(order.Status === "ACCEPTED" || order.Status === "IN_PROGRESS") && (
+          <div className="flex gap-2 mt-3">
             <button
               onClick={() => onChat?.()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               Chat
             </button>
-          )}
-        </div>
+            {order.Status === "ACCEPTED" && (
+              <button
+                onClick={() => onTrackMap(order)}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border/50 text-muted-foreground text-xs font-medium hover:bg-secondary/50 transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                Track on Map
+              </button>
+            )}
+          </div>
+        )}
       </Card>
     </motion.div>
   )
@@ -226,14 +230,14 @@ function CompletedOrderCard({
         <div className="space-y-2">
           <div className="flex justify-between">
             <p className="font-medium text-sm">{order.DeviceCategory}</p>
-            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">Completed</span>
+            <span className="text-xs bg-[#7ed957]/20 text-[#5fc036] px-2 py-0.5 rounded-full">Completed</span>
           </div>
           <p className="text-sm text-muted-foreground">{order.ProblemDescription}</p>
 
           {order.Technician && (
             <div className="flex items-center gap-2 pt-1">
-              <div className="h-6 w-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                <span className="text-xs text-emerald-400">
+              <div className="h-6 w-6 rounded-full bg-[#7ed957]/20 flex items-center justify-center shrink-0">
+                <span className="text-xs text-[#5fc036]">
                   {order.Technician?.User?.FullName?.charAt(0) || "T"}
                 </span>
               </div>
@@ -249,9 +253,54 @@ function CompletedOrderCard({
           </div>
 
           {order.TotalFee > 0 && (
-            <p className="text-xs text-emerald-400 font-medium">
+            <p className="text-xs text-[#5fc036] font-medium">
               Rp {order.TotalFee.toLocaleString("id-ID")}
             </p>
+          )}
+        </div>
+
+        {/* Struk servis */}
+        <div className="mt-3 rounded-xl border border-[#7ed957]/30 bg-[#7ed957]/5 p-3 space-y-3">
+          <div className="flex items-center gap-2 border-b border-[#7ed957]/20 pb-2">
+            <CheckCircle className="w-4 h-4 text-[#5fc036]" />
+            <p className="text-sm font-semibold text-[#5fc036]">Servis Selesai</p>
+          </div>
+
+          {order.TotalFee > 0 && (
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Total Biaya Servis</span>
+              <span className="text-sm font-bold text-foreground">
+                Rp {order.TotalFee.toLocaleString("id-ID")}
+              </span>
+            </div>
+          )}
+
+          <div className="bg-secondary/50 rounded-lg p-2">
+            <p className="text-xs text-muted-foreground text-center">
+              💳 Pembayaran dilakukan langsung ke teknisi (tunai / transfer)
+            </p>
+          </div>
+
+          {order.PhotoProofURL && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium">Foto Bukti Servis:</p>
+              <img
+                src={order.PhotoProofURL}
+                alt="Bukti servis"
+                className="w-full rounded-lg object-cover max-h-48 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => window.open(order.PhotoProofURL, "_blank")}
+              />
+              <p className="text-xs text-muted-foreground text-center">Klik foto untuk memperbesar</p>
+            </div>
+          )}
+
+          {order.EWasteSavedKg > 0 && (
+            <div className="flex items-center justify-between border-t border-[#7ed957]/20 pt-2">
+              <span className="text-xs text-muted-foreground">🌱 Dampak Lingkungan</span>
+              <span className="text-xs font-semibold text-[#5fc036]">
+                {order.EWasteSavedKg.toFixed(2)} kg CO₂ dihindari
+              </span>
+            </div>
           )}
         </div>
 
@@ -263,7 +312,7 @@ function CompletedOrderCard({
             Rate this repair
           </button>
         ) : (
-          <p className="text-xs text-emerald-400">✓ Reviewed</p>
+          <p className="text-xs text-[#5fc036]">✓ Reviewed</p>
         )}
 
         {reviewingId === order.ID && (
@@ -341,8 +390,11 @@ function EmptyState() {
 export default function OrdersPage() {
   const { user, isLoading: authLoading } = useAuth("customer")
   const router = useRouter()
-  const [orders, setOrders] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: orders, mutate: mutateOrders } = useSWR(
+    "/api/orders/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 30000 }
+  )
   const [activeTab, setActiveTab] = useState("active")
   const [showCancelConfirm, setShowCancelConfirm] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
@@ -351,24 +403,6 @@ export default function OrdersPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [chatOrderId, setChatOrderId] = useState<string | null>(null)
   const { toasts, removeToast, toast } = useToast()
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await apiFetch("/api/orders/")
-        if (response.ok) {
-          const data = await response.json()
-          setOrders(data.data || [])
-        }
-      } catch (err) {
-        console.error("Failed to fetch orders:", err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchOrders()
-  }, [])
-
 
   const handleTrackMap = (order: any) => {
     const techLat = order.Technician?.Latitude || order.Technician?.latitude
@@ -395,11 +429,7 @@ export default function OrdersPage() {
       })
 
       if (response.ok) {
-        const ordersResponse = await apiFetch("/api/orders/")
-        if (ordersResponse.ok) {
-          const data = await ordersResponse.json()
-          setOrders(data.data || [])
-        }
+        await mutateOrders()
         setShowCancelConfirm(null)
         toast.success("Order cancelled", "Your order has been cancelled.")
       } else {
@@ -434,13 +464,7 @@ export default function OrdersPage() {
         setRating(0)
         setComment("")
         toast.success("Review submitted!", "Thank you for your feedback.")
-
-        const ordersResponse = await apiFetch("/api/orders/")
-        if (ordersResponse.ok) {
-          const data = await ordersResponse.json()
-          console.log("Orders after review:", JSON.stringify(data.data, null, 2))
-          setOrders(data.data || [])
-        }
+        await mutateOrders()
       } else {
         toast.error("Failed to submit review", "Please try again.")
       }
@@ -452,12 +476,12 @@ export default function OrdersPage() {
     }
   }
 
-  const activeOrders = orders.filter(o =>
+  const activeOrders = (orders || []).filter((o: any) =>
     o.Status === "PENDING" ||
     o.Status === "ACCEPTED" ||
     o.Status === "IN_PROGRESS"
   )
-  const completedOrders = orders.filter(o =>
+  const completedOrders = (orders || []).filter((o: any) =>
     o.Status === "COMPLETED"
   )
 
@@ -472,7 +496,7 @@ export default function OrdersPage() {
     handleReview,
   }
 
-  if (authLoading || isLoading) {
+  if (authLoading || !orders) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-primary">Loading...</div>
@@ -483,7 +507,7 @@ export default function OrdersPage() {
   return (
     <div className="min-h-screen bg-background pb-10">
       <ToastNotification toasts={toasts} onRemove={removeToast} />
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Sticky header */}
         <div className="sticky top-0 md:top-16 z-10 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4 pt-4 pb-2">
           <h1 className="text-xl font-bold">My Orders</h1>
@@ -577,9 +601,9 @@ export default function OrdersPage() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                {orders.length > 0 ? (
+                {(orders || []).length > 0 ? (
                   <div>
-                    {orders.map((order) =>
+                    {(orders || []).map((order: any) =>
                       order.Status === "PENDING" || order.Status === "ACCEPTED" || order.Status === "IN_PROGRESS" ? (
                         <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id)} />
                       ) : (

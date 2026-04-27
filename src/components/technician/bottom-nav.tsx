@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { BottomNav } from "@/components/ui/bottom-nav"
-import { Home, ClipboardList, Map, DollarSign, User, Leaf } from "lucide-react"
+import { Home, ClipboardList, Map, DollarSign, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const technicianNavItems = [
@@ -22,7 +23,7 @@ function DesktopTopNav() {
       {/* Logo - left */}
       <div className="flex-1">
         <Link href="/technician/dashboard" className="flex items-center gap-2 w-fit">
-          <Leaf className="w-6 h-6 text-primary" />
+          <Image src="/icons/logo.png" alt="EcoServe" width={28} height={28} className="object-contain" />
           <span className="font-bold text-lg">EcoServe</span>
         </Link>
       </div>

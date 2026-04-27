@@ -1,36 +1,22 @@
 "use client"
-import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Smartphone, Laptop,
          Zap, Calendar, Weight, Wrench,
          Leaf } from "lucide-react"
-import { apiFetch } from "@/lib/api"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 import { useAuth } from "@/hooks/useAuth"
 
 export default function DeviceDetailPage() {
-  const { user, isLoading: authLoading } = useAuth("customer")
+  const { isLoading: authLoading } = useAuth("customer")
   const params = useParams()
   const router = useRouter()
-  const [device, setDevice] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchDevice = async () => {
-      try {
-        const response = await apiFetch(`/api/devices/${params.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          console.log("Device detail:", JSON.stringify(data, null, 2))
-          setDevice(data.data || data)
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    if (params.id) fetchDevice()
-  }, [params.id])
+  const { data: device, isLoading } = useSWR(
+    params.id ? `/api/devices/${params.id}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  )
 
   if (authLoading || isLoading) {
     return (
@@ -75,8 +61,7 @@ export default function DeviceDetailPage() {
       <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
 
         {/* Device Hero Card */}
-        <div className="rounded-2xl bg-gradient-to-br from-emerald-600
-                        to-emerald-800 p-6 text-white">
+        <div className="rounded-2xl p-6 text-white" style={{ background: "linear-gradient(to bottom right, #5cb83a, #4a9a2e)" }}>
           <div className="flex items-center gap-4 mb-4">
             <div className="w-14 h-14 rounded-xl bg-white/20
                             flex items-center justify-center">
@@ -84,7 +69,7 @@ export default function DeviceDetailPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold">{device.BrandName}</h2>
-              <p className="text-emerald-100">{device.Category}</p>
+              <p style={{ color: "rgba(255,255,255,0.85)" }}>{device.Category}</p>
             </div>
           </div>
 
@@ -93,17 +78,17 @@ export default function DeviceDetailPage() {
               <p className="text-2xl font-bold">
                 {device.total_repairs || 0}
               </p>
-              <p className="text-xs text-emerald-100">Repairs</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.85)" }}>Repairs</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold">
                 {device.WeightInKg}
               </p>
-              <p className="text-xs text-emerald-100">kg</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.85)" }}>kg</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
               <p className="text-lg font-bold">Active</p>
-              <p className="text-xs text-emerald-100">Status</p>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.85)" }}>Status</p>
             </div>
           </div>
         </div>
@@ -160,15 +145,15 @@ export default function DeviceDetailPage() {
         </div>
 
         {/* Eco Impact */}
-        <div className="rounded-xl border border-emerald-500/30
-                        bg-emerald-500/5 p-4">
+        <div className="rounded-xl border border-[#7ed957]/30
+                        bg-[#7ed957]/5 p-4">
           <h3 className="font-semibold flex items-center gap-2 mb-3">
-            <Leaf className="w-5 h-5 text-emerald-400" />
+            <Leaf className="w-5 h-5 text-[#5fc036]" />
             Eco Impact
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-emerald-500/10 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-emerald-400">
+            <div className="bg-[#7ed957]/10 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-[#5fc036]">
                 {((device.total_repairs || 0) *
                   device.WeightInKg * 70).toFixed(1)}
               </p>
@@ -176,8 +161,8 @@ export default function DeviceDetailPage() {
                 kg CO₂ Avoided
               </p>
             </div>
-            <div className="bg-emerald-500/10 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-emerald-400">
+            <div className="bg-[#7ed957]/10 rounded-lg p-3 text-center">
+              <p className="text-xl font-bold text-[#5fc036]">
                 {device.total_repairs || 0}
               </p>
               <p className="text-xs text-muted-foreground">

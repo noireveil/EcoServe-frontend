@@ -1,14 +1,11 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useState, useRef } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
+import { supabase } from "@/lib/supabase"
 import { motion } from "framer-motion"
 import {
   ChevronRight,
@@ -34,8 +31,16 @@ import { logout } from "@/lib/logout"
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading } = useAuth("customer")
-  const [orders, setOrders] = useState<any[]>([])
-  const [devices, setDevices] = useState<any[]>([])
+  const { data: orders = [] } = useSWR(
+    "/api/orders/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+  const { data: devices = [] } = useSWR(
+    "/api/devices/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
   const [editForm, setEditForm] = useState({ full_name: "", profile_picture_url: "" })
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -43,42 +48,12 @@ export default function ProfilePage() {
   const [modalOpen, setModalOpen] = useState<"about" | "privacy" | "terms" | "edit" | "delete" | "logout" | "report" | null>(null)
   const { toasts, removeToast, toast } = useToast()
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await apiFetch("/api/orders/")
-        if (response.ok) {
-          const data = await response.json()
-          setOrders(data.data || [])
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    fetchOrders()
-  }, [])
-
-  useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        const response = await apiFetch("/api/devices/")
-        if (response.ok) {
-          const data = await response.json()
-          setDevices(data.data || [])
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    fetchDevices()
-  }, [])
-
-  const completedOrders = orders.filter(o => o.Status === "COMPLETED")
-  const totalCO2 = completedOrders.reduce((sum, o) => sum + (o.EWasteSavedKg || 0), 0)
+  const completedOrders = orders.filter((o: any) => o.Status === "COMPLETED")
+  const totalCO2 = completedOrders.reduce((sum: number, o: any) => sum + (o.EWasteSavedKg || 0), 0)
   const totalRepairs = completedOrders.length
   const eWasteSaved = devices
-    .filter(d => (d.total_repairs || 0) > 0)
-    .reduce((sum, d) => sum + (d.WeightInKg || 0), 0)
+    .filter((d: any) => (d.total_repairs || 0) > 0)
+    .reduce((sum: number, d: any) => sum + (d.WeightInKg || 0), 0)
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -187,7 +162,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background md:pb-10">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Profile Header */}
         <div className="px-4 pt-6 md:pt-6 pb-8">
           <motion.div
@@ -234,25 +209,25 @@ export default function ProfilePage() {
           transition={{ duration: 0.3, delay: 0.1 }}
           className="mx-4 mb-8"
         >
-          <Card className="bg-linear-to-br from-primary/20 to-accent/20 border-primary/30 p-6">
-            <h2 className="text-sm font-semibold text-muted-foreground mb-6">
+          <div className="rounded-xl p-6 text-white" style={{ background: "linear-gradient(to bottom right, #5cb83a, #4a9a2e)" }}>
+            <h2 className="text-sm font-semibold mb-6" style={{ color: "rgba(255,255,255,0.85)" }}>
               Your Impact
             </h2>
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col items-center">
-                <div className="text-2xl font-bold text-primary">{totalCO2.toFixed(1)} kg</div>
-                <div className="text-xs text-muted-foreground mt-1">CO₂ Saved</div>
+                <div className="text-2xl font-bold">{totalCO2.toFixed(1)} kg</div>
+                <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.85)" }}>CO₂ Saved</div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="text-2xl font-bold text-primary">{totalRepairs}</div>
-                <div className="text-xs text-muted-foreground mt-1">Repairs Done</div>
+                <div className="text-2xl font-bold">{totalRepairs}</div>
+                <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.85)" }}>Repairs Done</div>
               </div>
               <div className="flex flex-col items-center">
-                <div className="text-2xl font-bold text-primary">{eWasteSaved.toFixed(2)} kg</div>
-                <div className="text-xs text-muted-foreground mt-1">E-waste Reduced</div>
+                <div className="text-2xl font-bold">{eWasteSaved.toFixed(2)} kg</div>
+                <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.85)" }}>E-waste Reduced</div>
               </div>
             </div>
-          </Card>
+          </div>
         </motion.div>
 
         {/* Menu Sections */}
@@ -508,7 +483,7 @@ export default function ProfilePage() {
       >
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{`Mengalami masalah dengan EcoServe? Kami siap membantu!
 
-📧 Email Support
+Email Support
 Kirim laporan detail ke:
 support@ecoserve.id
 
@@ -518,10 +493,10 @@ Sertakan informasi berikut:
 - Screenshot jika memungkinkan
 - ID pesanan (jika terkait dengan transaksi)
 
-⏱️ Response Time
+Response Time
 Kami akan merespons dalam 1x24 jam di hari kerja.
 
-🔒 Keamanan & Fraud
+Keamanan & Fraud
 Untuk melaporkan teknisi yang mencurigakan atau
 transaksi yang bermasalah, tambahkan subjek:
 [FRAUD REPORT] di email Anda.

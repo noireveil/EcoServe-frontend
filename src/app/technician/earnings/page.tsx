@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
-import { apiFetch } from "@/lib/api"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 import { motion } from "framer-motion"
 import {
   ChevronLeft,
@@ -19,30 +20,24 @@ import { Badge } from "@/components/ui/badge"
 export default function EarningsPage() {
   const { isLoading: authLoading } = useAuth("technician")
   const [selectedMonth, setSelectedMonth] = useState(0)
-  const [earnings, setEarnings] = useState<any>(null)
-  const [orders, setOrders] = useState<any[]>([])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [earningsResponse, ordersResponse] = await Promise.all([
-          apiFetch("/api/technicians/earnings"),
-          apiFetch("/api/orders/")
-        ])
-        if (earningsResponse.ok) {
-          const data = await earningsResponse.json()
-          setEarnings(data.data)
-        }
-        if (ordersResponse.ok) {
-          const data = await ordersResponse.json()
-          setOrders(data.data || [])
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    fetchData()
-  }, [])
+  const { data: orders = [] } = useSWR(
+    "/api/orders/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+
+  const { data: earnings } = useSWR(
+    "/api/technicians/earnings",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+
+  const { data: performance } = useSWR(
+    "/api/technicians/performance",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
 
   const getMonthOptions = () => {
     const now = new Date()

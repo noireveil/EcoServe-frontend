@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
+import useSWR from "swr"
+import { fetcher } from "@/lib/fetcher"
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, ChevronRight, Wrench, Smartphone, Laptop, Zap, Leaf, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -48,8 +50,16 @@ const getCategoryColor = (category: string) => {
 export default function MyDevicesPage() {
   const { isLoading: authLoading } = useAuth("customer")
   const router = useRouter()
-  const [devices, setDevices] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
+  const { data: devices, isLoading: devicesLoading, mutate: mutateDevices } = useSWR(
+    "/api/devices/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
+  const { data: orders } = useSWR(
+    "/api/orders/",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
+  )
   const [showModal, setShowModal] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,39 +70,9 @@ export default function MyDevicesPage() {
     weight_in_kg: 0,
   })
 
-  useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        const response = await apiFetch("/api/devices/")
-        if (response.ok) {
-          const data = await response.json()
-          setDevices(data.data || [])
-        }
-      } catch (err) {
-        console.error("Failed to fetch devices:", err)
-      }
-    }
-    fetchDevices()
-  }, [])
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await apiFetch("/api/orders/")
-        if (response.ok) {
-          const data = await response.json()
-          setOrders(data.data || [])
-        }
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    fetchOrders()
-  }, [])
-
-  const completedOrders = orders.filter(o => o.Status === "COMPLETED")
-  const totalRepairs = devices.reduce((sum, d) => sum + (d.total_repairs || 0), 0)
-  const totalCO2Saved = completedOrders.reduce((sum, o) => sum + (o.EWasteSavedKg || 0), 0).toFixed(1)
+  const completedOrders = (orders || []).filter((o: any) => o.Status === "COMPLETED")
+  const totalRepairs = (devices || []).reduce((sum: number, d: any) => sum + (d.total_repairs || 0), 0)
+  const totalCO2Saved = completedOrders.reduce((sum: number, o: any) => sum + (o.EWasteSavedKg || 0), 0).toFixed(1)
 
   const handleDeleteDevice = async (deviceId: string) => {
     try {
@@ -101,9 +81,9 @@ export default function MyDevicesPage() {
       })
 
       if (response.ok) {
-        setDevices(prev => prev.filter(d => d.ID !== deviceId))
         setDeleteConfirmId(null)
         toast.success("Device removed", "Device has been deleted from your garage.")
+        await mutateDevices()
       } else {
         toast.error("Delete failed", "Could not remove the device. Please try again.")
         setDeleteConfirmId(null)
@@ -129,11 +109,10 @@ export default function MyDevicesPage() {
       })
 
       if (response.ok) {
-        const data = await response.json()
-        setDevices(prev => [data.data, ...prev])
         setForm({ brand_name: "", category: "Smartphone", weight_in_kg: 0 })
         setShowModal(false)
         toast.success("Device added", `${form.brand_name} has been added to your garage.`)
+        await mutateDevices()
       } else {
         toast.error("Add failed", "Could not add the device. Please try again.")
       }
@@ -144,7 +123,7 @@ export default function MyDevicesPage() {
     }
   }
 
-  if (authLoading) {
+  if (authLoading || devicesLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-primary">Loading...</div>
@@ -156,7 +135,7 @@ export default function MyDevicesPage() {
     <div className="min-h-screen w-full bg-background pb-20">
       <div className="max-w-2xl mx-auto">
         {/* Sticky Header */}
-        <div className="sticky top-0 md:top-16 z-40 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="sticky top-0 md:top-16 z-40 border-b border-border/50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           <div className="flex items-center justify-between px-4 py-4">
             <h1 className="text-xl font-bold text-foreground">My Devices</h1>
             <Button
@@ -172,28 +151,28 @@ export default function MyDevicesPage() {
 
         {/* Main Content */}
         <div className="px-4 pb-6 space-y-6">
-          {devices.length > 0 ? (
+          {(devices || []).length > 0 ? (
             <>
               {/* Summary Card */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border border-border/50 bg-gradient-to-br from-primary/10 to-primary/5 p-6 mt-5"
+                className="rounded-2xl p-6 mt-5 text-white"
+                style={{ background: "linear-gradient(to bottom right, #5cb83a, #4a9a2e)" }}
               >
-                <h2 className="text-lg font-semibold text-foreground mb-4">Your Digital Garage</h2>
+                <h2 className="text-lg font-semibold mb-4">Your Digital Garage</h2>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="flex flex-col">
-                    <span className="text-2xl font-bold text-primary">{devices.length}</span>
-                    <span className="text-xs text-muted-foreground">Devices</span>
+                    <span className="text-2xl font-bold">{(devices || []).length}</span>
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.85)" }}>Devices</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-2xl font-bold text-primary">{totalRepairs}</span>
-                    <span className="text-xs text-muted-foreground">Repairs</span>
+                    <span className="text-2xl font-bold">{totalRepairs}</span>
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.85)" }}>Repairs</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-2xl font-bold text-primary">{totalCO2Saved} kg</span>
-
-                    <span className="text-xs text-muted-foreground">CO₂ Saved</span>
+                    <span className="text-2xl font-bold">{totalCO2Saved} kg</span>
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.85)" }}>CO₂ Saved</span>
                   </div>
                 </div>
               </motion.div>
@@ -201,7 +180,7 @@ export default function MyDevicesPage() {
               {/* Device List */}
               <div className="space-y-3">
                 <AnimatePresence>
-                  {devices.map((device, index) => (
+                  {(devices || []).map((device: any, index: number) => (
                     <motion.div
                       key={device.ID || device.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -226,12 +205,8 @@ export default function MyDevicesPage() {
                             {/* Center: Device Info */}
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-foreground truncate">{device.BrandName}</h3>
-                              <p className="text-xs text-muted-foreground">
-                                {device.Category}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {device.WeightInKg} kg
-                              </p>
+                              <p className="text-xs text-muted-foreground">{device.Category}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{device.WeightInKg} kg</p>
                             </div>
 
                             {/* Right: Status, Delete & Chevron */}
@@ -243,7 +218,7 @@ export default function MyDevicesPage() {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
-                                <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30">
+                                <Badge className="bg-[#7ed957]/20 text-[#5cb83a]">
                                   Active
                                 </Badge>
                               </div>

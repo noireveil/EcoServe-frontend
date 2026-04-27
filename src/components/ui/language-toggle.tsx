@@ -1,9 +1,16 @@
 "use client"
 import { useLanguage } from "@/context/LanguageContext"
 import { Languages } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export function LanguageToggle() {
   const { lang, setLang } = useLanguage()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted) return (
+    <div className="flex items-center justify-between w-full py-3 px-4 rounded-xl border border-border/50 bg-card animate-pulse h-15" />
+  )
 
   return (
     <button
