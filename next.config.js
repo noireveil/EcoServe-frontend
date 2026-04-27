@@ -7,6 +7,9 @@ const withPWA = require("next-pwa")({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Menambahkan turbopack kosong agar Next.js 16 mengabaikan bentrok Webpack
+  turbopack: {},
+
   async rewrites() {
     return [
       {
