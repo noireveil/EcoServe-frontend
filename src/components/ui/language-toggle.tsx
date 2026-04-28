@@ -7,6 +7,7 @@ export function LanguageToggle() {
   const { lang, setLang } = useLanguage()
   const [mounted, setMounted] = useState(false)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true) }, [])
   if (!mounted) return (
     <div className="flex items-center justify-between w-full py-3 px-4 rounded-xl border border-border/50 bg-card animate-pulse h-15" />

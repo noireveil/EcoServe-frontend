@@ -7,12 +7,13 @@ import { useAuth } from "@/hooks/useAuth"
 import { ToastNotification } from "@/components/ui/toast-notification"
 import { useToast } from "@/hooks/useToast"
 import Link from "next/link"
+import type { Device } from "@/types"
 
 export default function ReportDamagePage() {
   const { isLoading: authLoading } = useAuth("customer")
   const router = useRouter()
 
-  const [devices, setDevices] = useState<any[]>([])
+  const [devices, setDevices] = useState<Device[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("")
   const [description, setDescription] = useState("")

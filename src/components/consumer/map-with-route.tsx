@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -32,6 +33,7 @@ const custIcon = new L.Icon({
 
 function RoutingControl({ from, to }: { from: [number, number]; to: [number, number] }) {
   const map = useMap()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const routingRef = useRef<any>(null)
 
   useEffect(() => {
@@ -51,10 +53,12 @@ function RoutingControl({ from, to }: { from: [number, number]; to: [number, num
       try {
         await import("leaflet-routing-machine")
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         routingRef.current = (L as any).Routing.control({
           waypoints: [L.latLng(from[0], from[1]), L.latLng(to[0], to[1])],
           routeWhileDragging: false,
           show: false,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           router: (L as any).Routing.osrmv1({
             serviceUrl: "https://router.project-osrm.org/route/v1",
             profile: "driving",
@@ -86,6 +90,7 @@ function RoutingControl({ from, to }: { from: [number, number]; to: [number, num
         console.log("Cleanup:", err)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, from[0], from[1], to[0], to[1]])
 
   return null

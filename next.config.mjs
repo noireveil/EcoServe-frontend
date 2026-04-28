@@ -1,4 +1,6 @@
-const withPWA = require("next-pwa")({
+import { createRequire } from "module"
+const nodeRequire = createRequire(import.meta.url)
+const withPWA = nodeRequire("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
@@ -7,7 +9,6 @@ const withPWA = require("next-pwa")({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Menambahkan turbopack kosong agar Next.js 16 mengabaikan bentrok Webpack
   turbopack: {},
 
   async rewrites() {
@@ -20,4 +21,8 @@ const nextConfig = {
   },
 }
 
+<<<<<<< Updated upstream:next.config.js
 module.exports = withPWA(nextConfig)
+=======
+export default withPWA(nextConfig)
+>>>>>>> Stashed changes:next.config.mjs

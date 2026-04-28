@@ -40,7 +40,7 @@ export default function TestModalPage() {
       >
         <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
           <p>
-            EcoServe is Indonesia's first AI-powered e-waste circular platform,
+            EcoServe is Indonesia&apos;s first AI-powered e-waste circular platform,
             built to connect consumers with verified repair technicians and track
             the real carbon impact of every repair.
           </p>

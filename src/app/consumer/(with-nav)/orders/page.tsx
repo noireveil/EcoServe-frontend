@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from "react"
 import { useAuth } from "@/hooks/useAuth"
+import Image from "next/image"
 import { apiFetch } from "@/lib/api"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
@@ -22,6 +23,7 @@ import { ToastNotification } from "@/components/ui/toast-notification"
 import { useToast } from "@/hooks/useToast"
 import { ChatDrawer } from "@/components/ui/chat-drawer"
 import { cn } from "@/lib/utils"
+import type { Order } from "@/types"
 
 const steps = [
   "Submitted",
@@ -42,8 +44,8 @@ const getStepNumber = (status: string): number => {
 }
 
 function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelConfirm, onCancel, onChat }: {
-  order: any
-  onTrackMap: (order: any) => void
+  order: Order
+  onTrackMap: (order: Order) => void
   showCancelConfirm: string | null
   setShowCancelConfirm: (id: string | null) => void
   onCancel: (orderId: string) => void
@@ -91,8 +93,8 @@ function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelCo
               </p>
               <p className="text-xs text-muted-foreground">
                 {order.Technician?.Specialization || "General Repair"}
-                {order.Technician?.Rating > 0
-                  ? ` • ⭐ ${order.Technician.Rating}`
+                {(order.Technician?.Rating ?? 0) > 0
+                  ? ` • ⭐ ${order.Technician?.Rating}`
                   : " • New Technician"}
               </p>
             </div>
@@ -198,7 +200,7 @@ function ActiveOrderCard({ order, onTrackMap, showCancelConfirm, setShowCancelCo
 }
 
 interface CompletedOrderCardProps {
-  order: any
+  order: Order
   reviewingId: string | null
   setReviewingId: (id: string | null) => void
   rating: number
@@ -252,9 +254,9 @@ function CompletedOrderCard({
             <span>🌱 {(order.EWasteSavedKg ?? 0).toFixed(2)} kg CO₂</span>
           </div>
 
-          {order.TotalFee > 0 && (
+          {(order.TotalFee ?? 0) > 0 && (
             <p className="text-xs text-[#5fc036] font-medium">
-              Rp {order.TotalFee.toLocaleString("id-ID")}
+              Rp {order.TotalFee?.toLocaleString("id-ID")}
             </p>
           )}
         </div>
@@ -266,11 +268,11 @@ function CompletedOrderCard({
             <p className="text-sm font-semibold text-[#5fc036]">Servis Selesai</p>
           </div>
 
-          {order.TotalFee > 0 && (
+          {(order.TotalFee ?? 0) > 0 && (
             <div className="flex justify-between items-center">
               <span className="text-xs text-muted-foreground">Total Biaya Servis</span>
               <span className="text-sm font-bold text-foreground">
-                Rp {order.TotalFee.toLocaleString("id-ID")}
+                Rp {order.TotalFee?.toLocaleString("id-ID")}
               </span>
             </div>
           )}
@@ -284,9 +286,12 @@ function CompletedOrderCard({
           {order.PhotoProofURL && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground font-medium">Foto Bukti Servis:</p>
-              <img
-                src={order.PhotoProofURL}
+              <Image
+                src={order.PhotoProofURL!}
                 alt="Bukti servis"
+                width={400}
+                height={192}
+                unoptimized
                 className="w-full rounded-lg object-cover max-h-48 cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => window.open(order.PhotoProofURL, "_blank")}
               />
@@ -294,11 +299,11 @@ function CompletedOrderCard({
             </div>
           )}
 
-          {order.EWasteSavedKg > 0 && (
+          {(order.EWasteSavedKg ?? 0) > 0 && (
             <div className="flex items-center justify-between border-t border-[#7ed957]/20 pt-2">
               <span className="text-xs text-muted-foreground">🌱 Dampak Lingkungan</span>
               <span className="text-xs font-semibold text-[#5fc036]">
-                {order.EWasteSavedKg.toFixed(2)} kg CO₂ dihindari
+                {order.EWasteSavedKg?.toFixed(2)} kg CO₂ dihindari
               </span>
             </div>
           )}
@@ -404,7 +409,7 @@ export default function OrdersPage() {
   const [chatOrderId, setChatOrderId] = useState<string | null>(null)
   const { toasts, removeToast, toast } = useToast()
 
-  const handleTrackMap = (order: any) => {
+  const handleTrackMap = (order: Order) => {
     const techLat = order.Technician?.Latitude || order.Technician?.latitude
     const techLng = order.Technician?.Longitude || order.Technician?.longitude
 
@@ -476,12 +481,12 @@ export default function OrdersPage() {
     }
   }
 
-  const activeOrders = (orders || []).filter((o: any) =>
+  const activeOrders: Order[] = (orders || []).filter((o: Order) =>
     o.Status === "PENDING" ||
     o.Status === "ACCEPTED" ||
     o.Status === "IN_PROGRESS"
   )
-  const completedOrders = (orders || []).filter((o: any) =>
+  const completedOrders: Order[] = (orders || []).filter((o: Order) =>
     o.Status === "COMPLETED"
   )
 
@@ -564,7 +569,7 @@ export default function OrdersPage() {
                 {activeOrders.length > 0 ? (
                   <div>
                     {activeOrders.map((order) => (
-                      <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id)} />
+                      <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id || null)} />
                     ))}
                   </div>
                 ) : (
@@ -603,9 +608,9 @@ export default function OrdersPage() {
               >
                 {(orders || []).length > 0 ? (
                   <div>
-                    {(orders || []).map((order: any) =>
+                    {(orders || []).map((order: Order) =>
                       order.Status === "PENDING" || order.Status === "ACCEPTED" || order.Status === "IN_PROGRESS" ? (
-                        <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id)} />
+                        <ActiveOrderCard key={order.ID || order.id} order={order} onTrackMap={handleTrackMap} showCancelConfirm={showCancelConfirm} setShowCancelConfirm={setShowCancelConfirm} onCancel={handleCancel} onChat={() => setChatOrderId(order.ID || order.id || null)} />
                       ) : (
                         <CompletedOrderCard key={order.ID || order.id} order={order} {...reviewProps} />
                       )

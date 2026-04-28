@@ -3,10 +3,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiFetch } from "@/lib/api"
 import { getCachedUser, setCachedUser } from "@/lib/auth-cache"
+import type { User } from "@/types"
 
 export function useAuth(requiredRole?: "customer" | "technician") {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -72,9 +73,10 @@ export function useAuth(requiredRole?: "customer" | "technician") {
             }
           }
         }
-      } catch (err: any) {
-        if (err?.type === "RATE_LIMITED") {
-          setTimeout(() => checkAuth(), (err.seconds || 60) * 1000)
+      } catch (err: unknown) {
+        const rateErr = err as { type?: string; seconds?: number }
+        if (rateErr?.type === "RATE_LIMITED") {
+          setTimeout(() => checkAuth(), (rateErr.seconds || 60) * 1000)
           setIsLoading(false)
           return
         }
@@ -86,6 +88,7 @@ export function useAuth(requiredRole?: "customer" | "technician") {
     }
 
     checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return { user, isLoading }

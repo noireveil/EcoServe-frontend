@@ -11,19 +11,44 @@ import { ToastNotification } from '@/components/ui/toast-notification'
 import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils'
 import { apiFetch } from '@/lib/api'
+import Image from 'next/image'
+import type { Device } from '@/types'
 
 type DiagnosisState = 'input' | 'loading' | 'high-confidence' | 'low-confidence'
+
+interface NearbyTechnician {
+  ID: string
+  Specialization?: string
+  Rating?: number
+  TotalRepairs?: number
+  ExperienceYears?: number
+  Latitude?: number
+  Longitude?: number
+  DistanceKm?: number
+  User?: { FullName?: string; ProfilePictureURL?: string; PhoneNumber?: string }
+}
+
+interface DiagnosisResult {
+  diagnosis: {
+    confidence_score: number
+    category: string
+    analysis: string
+    mitigation?: string
+  }
+  is_fallback_active?: boolean
+  technicians?: NearbyTechnician[]
+}
 
 export default function AIDiagnosisPage() {
   const { isLoading: authLoading } = useAuth("customer")
   const router = useRouter()
   const [state, setState] = useState<DiagnosisState>('input')
   const [selectedDevice, setSelectedDevice] = useState('')
-  const [selectedDeviceObj, setSelectedDeviceObj] = useState<any>(null)
+  const [selectedDeviceObj, setSelectedDeviceObj] = useState<Device | null>(null)
   const [description, setDescription] = useState('')
   const [photoBase64, setPhotoBase64] = useState<string>('')
-  const [diagnosisResult, setDiagnosisResult] = useState<any>(null)
-  const [devices, setDevices] = useState<any[]>([])
+  const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null)
+  const [devices, setDevices] = useState<Device[]>([])
   const { toasts, removeToast, toast } = useToast()
 
   useEffect(() => {
@@ -245,7 +270,7 @@ export default function AIDiagnosisPage() {
                 <label className="block text-sm font-medium pb-1">Try it with Photo</label>
                 {photoBase64 ? (
                   <div className="relative">
-                    <img src={photoBase64} alt="Device photo" className="w-full h-90 object-cover rounded-xl" />
+                    <Image src={photoBase64} alt="Device photo" width={400} height={180} unoptimized className="w-full h-90 object-cover rounded-xl" />
                     <button
                       onClick={() => setPhotoBase64('')}
                       className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"
@@ -333,7 +358,7 @@ export default function AIDiagnosisPage() {
                     <div>
                       <p className="text-sm font-semibold text-green-400 mb-2">DIY Fix Available ✓</p>
                       <p className="text-xs font-medium text-muted-foreground">
-                        Confidence: {(diagnosisResult?.diagnosis?.confidence_score * 100).toFixed(0)}%
+                        Confidence: {((diagnosisResult?.diagnosis?.confidence_score ?? 0) * 100).toFixed(0)}%
                       </p>
                     </div>
                   </div>
@@ -459,14 +484,17 @@ export default function AIDiagnosisPage() {
                       transition={{ delay: 0.3 }}
                       className="space-y-3"
                     >
-                      {diagnosisResult?.technicians?.map((tech: any) => (
+                      {diagnosisResult?.technicians?.map((tech: NearbyTechnician) => (
                         <div key={tech.ID} className="rounded-lg border border-border bg-card p-4 space-y-4">
                           <div className="flex items-start gap-3">
                             {tech.User?.ProfilePictureURL ? (
-                              <img
-                                src={tech.User.ProfilePictureURL}
-                                alt={tech.User?.FullName}
-                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                              <Image
+                                src={tech.User.ProfilePictureURL!}
+                                alt={tech.User?.FullName || "Technician"}
+                                width={48}
+                                height={48}
+                                unoptimized
+                                className="w-12 h-12 rounded-lg object-cover shrink-0"
                               />
                             ) : (
                               <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -480,8 +508,8 @@ export default function AIDiagnosisPage() {
                               <p className="font-semibold">{tech.User?.FullName || "Technician"}</p>
                               <p className="text-xs text-muted-foreground">
                                 {tech.Specialization || "General Repair"}
-                                {tech.ExperienceYears > 0 ? ` • ${tech.ExperienceYears} yr exp` : ""}
-                                {tech.Rating > 0 ? ` • ⭐ ${tech.Rating}` : ""}
+                                {(tech.ExperienceYears ?? 0) > 0 ? ` • ${tech.ExperienceYears} yr exp` : ""}
+                                {(tech.Rating ?? 0) > 0 ? ` • ⭐ ${tech.Rating}` : ""}
                               </p>
                             </div>
                           </div>

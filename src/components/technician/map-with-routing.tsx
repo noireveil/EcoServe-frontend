@@ -4,7 +4,9 @@ import { useEffect, useRef } from "react"
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
+import type { Order } from "@/types"
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -22,6 +24,7 @@ function RoutingControl({
   onInstructions?: (steps: string[]) => void
 }) {
   const map = useMap()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const routingRef = useRef<any>(null)
 
   useEffect(() => {
@@ -41,6 +44,7 @@ function RoutingControl({
       try {
         await import("leaflet-routing-machine")
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         routingRef.current = (L as any).Routing.control({
           waypoints: [
             L.latLng(from[0], from[1]),
@@ -48,6 +52,7 @@ function RoutingControl({
           ],
           routeWhileDragging: false,
           show: false,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           router: (L as any).Routing.osrmv1({
             serviceUrl: "https://router.project-osrm.org/route/v1",
             profile: "driving",
@@ -60,8 +65,10 @@ function RoutingControl({
           createMarker: () => null,
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         routingRef.current.on("routesfound", (e: any) => {
           const route = e.routes[0]
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const steps = route.instructions.map((i: any) => i.text)
           onInstructions?.(steps)
         })
@@ -85,6 +92,7 @@ function RoutingControl({
         console.log("Cleanup:", err)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, from[0], from[1], to[0], to[1]])
 
   return null
@@ -94,7 +102,7 @@ interface MapWithRoutingProps {
   userLocation: [number, number]
   targetLat: number | null
   targetLng: number | null
-  nearbyOrders: any[]
+  nearbyOrders: Order[]
   onInstructions?: (steps: string[]) => void
 }
 

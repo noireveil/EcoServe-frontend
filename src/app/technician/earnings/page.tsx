@@ -12,6 +12,7 @@ import {
   Wallet,
 } from "lucide-react"
 
+import type { Order } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -33,12 +34,6 @@ export default function EarningsPage() {
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   )
 
-  const { data: performance } = useSWR(
-    "/api/technicians/performance",
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60000 }
-  )
-
   const getMonthOptions = () => {
     const now = new Date()
     return [0, -1, -2].map(offset => {
@@ -55,7 +50,7 @@ export default function EarningsPage() {
   const monthOptions = getMonthOptions()
   const currentMonthOption = monthOptions.find(m => m.offset === selectedMonth)
 
-  const filteredOrders = orders.filter(o => {
+  const filteredOrders = (orders as Order[]).filter((o: Order) => {
     if (o.Status !== "COMPLETED") return false
     const orderDate = new Date(o.UpdatedAt)
     const selected = new Date()
@@ -68,8 +63,8 @@ export default function EarningsPage() {
 
   const monthlyStats = {
     totalRepairs: filteredOrders.length,
-    totalCO2: filteredOrders.reduce((sum, o) => sum + (o.EWasteSavedKg || 0), 0),
-    totalFee: filteredOrders.reduce((sum, o) => sum + (o.NetTechnicianFee || 0), 0),
+    totalCO2: filteredOrders.reduce((sum: number, o: Order) => sum + (o.EWasteSavedKg || 0), 0),
+    totalFee: filteredOrders.reduce((sum: number, o: Order) => sum + (o.NetTechnicianFee || 0), 0),
   }
 
   if (authLoading) {
@@ -157,7 +152,7 @@ export default function EarningsPage() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
               <div className="space-y-4">
-                {filteredOrders.map((order, idx) => (
+                {filteredOrders.map((order: Order, idx: number) => (
                   <motion.div
                     key={order.ID}
                     initial={{ opacity: 0, x: -20 }}

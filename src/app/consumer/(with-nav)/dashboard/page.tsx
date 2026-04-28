@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import useSWR from "swr"
@@ -24,6 +25,7 @@ import {
   ShoppingBag,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { Order } from "@/types"
 
 export default function ConsumerDashboard() {
   const { user, isLoading: authLoading } = useAuth("customer")
@@ -57,6 +59,7 @@ export default function ConsumerDashboard() {
       }, 300)
     }, 5000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const currentTip = ecoTips[tipIndex]
@@ -93,22 +96,22 @@ export default function ConsumerDashboard() {
   }
 
   const activeByCategory = (orders || [])
-    .filter((o: any) =>
+    .filter((o: Order) =>
       o.Status === "PENDING" ||
       o.Status === "ACCEPTED" ||
       o.Status === "IN_PROGRESS"
     )
-    .reduce((acc: any[], order: any) => {
+    .reduce((acc: Order[], order: Order) => {
       const alreadyHas = acc.find(o => o.DeviceCategory === order.DeviceCategory)
       if (!alreadyHas) acc.push(order)
       return acc
     }, [])
 
   const completedOrders = (orders || []).filter(
-    (o: any) => o.Status === "COMPLETED"
+    (o: Order) => o.Status === "COMPLETED"
   )
 
-  const totalCO2 = completedOrders.reduce((sum: number, o: any) => sum + (o.EWasteSavedKg || 0), 0)
+  const totalCO2 = completedOrders.reduce((sum: number, o: Order) => sum + (o.EWasteSavedKg || 0), 0)
   const totalRepairs = completedOrders.length
 
   return (
@@ -122,14 +125,17 @@ export default function ConsumerDashboard() {
           <aside className="hidden lg:block space-y-4">
 
             {/* Profile Card */}
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
+            <div className="rounded-xl border bg-card overflow-hidden">
               <div className="h-16" style={{ background: "linear-gradient(to right, #5cb83a, #4a9a2e)" }} />
               <div className="px-4 pb-4 -mt-8">
                 <div className="w-16 h-16 rounded-full border-4 border-card bg-primary/20 flex items-center justify-center mb-2 overflow-hidden">
                   {user?.ProfilePictureURL ? (
-                    <img
+                    <Image
                       src={user.ProfilePictureURL}
                       alt={user.FullName}
+                      width={64}
+                      height={64}
+                      unoptimized
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -140,7 +146,7 @@ export default function ConsumerDashboard() {
                 </div>
                 <h3 className="font-semibold text-foreground">{user?.FullName || "User"}</h3>
                 <p className="text-xs text-muted-foreground mb-3">EcoServe Customer</p>
-                <div className="border-t border-border/50 pt-3 space-y-2">
+                <div className="border-t border pt-3 space-y-2">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Total Repairs</span>
                     <span className="font-semibold text-foreground">{completedOrders.length}</span>
@@ -154,7 +160,7 @@ export default function ConsumerDashboard() {
             </div>
 
             {/* Quick Navigation */}
-            <div className="rounded-xl border border-border/50 bg-card p-4">
+            <div className="rounded-xl border bg-card p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Quick Access
               </h4>
@@ -185,7 +191,7 @@ export default function ConsumerDashboard() {
             <header className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-semibold text-foreground">
-                  {`Hello, ${getNickname(user?.FullName || user?.fullName || user?.full_name || "")} 👋`}
+                  {`Hello, ${getNickname(user?.FullName || "")} 👋`}
                 </h1>
                 <p className="text-sm text-muted-foreground">{t(lang, "welcomeBack")}</p>
               </div>
@@ -263,7 +269,7 @@ export default function ConsumerDashboard() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
-                      className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80 w-full"
+                      className="flex flex-col items-center gap-2 rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:bg-card/80 w-full"
                     >
                       <div className={cn("rounded-xl p-3", action.color)}>
                         <action.icon className="h-5 w-5" />
@@ -283,8 +289,8 @@ export default function ConsumerDashboard() {
                 transition={{ delay: 0.4 }}
               >
                 <div className="space-y-3">
-                  {activeByCategory.map((order: any) => (
-                    <div key={order.ID} className="rounded-xl border border-border/50 bg-card p-4">
+                  {activeByCategory.map((order: Order) => (
+                    <div key={order.ID} className="rounded-xl border bg-card p-4">
                       <div className="mb-3 flex items-center justify-between">
                         <h3 className="font-semibold text-foreground">{t(lang, "activeOrder")}</h3>
                         <Badge className={cn(
@@ -342,7 +348,7 @@ export default function ConsumerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <div className="rounded-xl border border-border/50 bg-card p-4">
+                <div className="rounded-xl border bg-card p-4">
                   <p className="text-sm text-muted-foreground">{t(lang, "noActiveOrders")}</p>
                 </div>
               </motion.section>
@@ -363,7 +369,7 @@ export default function ConsumerDashboard() {
 
               <div className="space-y-3">
                 {completedOrders.length > 0 ? (
-                  completedOrders.slice(0, 3).map((order: any) => (
+                  completedOrders.slice(0, 3).map((order: Order) => (
                     <div key={order.ID} className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3">
                       <div className="rounded-lg bg-secondary p-2">
                         <Smartphone className="h-5 w-5 text-foreground" />
@@ -384,9 +390,9 @@ export default function ConsumerDashboard() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           {new Date(order.UpdatedAt).toLocaleDateString("id-ID")}
                         </p>
-                        {order.EWasteSavedKg > 0 && (
+                        {(order.EWasteSavedKg ?? 0) > 0 && (
                           <p className="text-xs text-[#5cb83a]">
-                            🌱 {order.EWasteSavedKg.toFixed(1)} kg
+                            🌱 {order.EWasteSavedKg?.toFixed(1)} kg
                           </p>
                         )}
                       </div>
