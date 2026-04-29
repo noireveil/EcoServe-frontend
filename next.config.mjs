@@ -21,8 +21,4 @@ const nextConfig = {
   },
 }
 
-<<<<<<< Updated upstream:next.config.js
-module.exports = withPWA(nextConfig)
-=======
 export default withPWA(nextConfig)
->>>>>>> Stashed changes:next.config.mjs
