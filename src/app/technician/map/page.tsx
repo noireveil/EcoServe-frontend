@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import { ArrowLeft } from "lucide-react"
+import type { Order } from "@/types"
 
 const MapWithRouting = dynamic(
   () => import("@/components/technician/map-with-routing"),
@@ -31,7 +32,7 @@ function TechnicianMapContent() {
 
   const locationSet = useRef(false)
   const [userLocation, setUserLocation] = useState<[number, number]>([-6.2088, 106.8456])
-  const [nearbyOrders, setNearbyOrders] = useState<any[]>([])
+  const [nearbyOrders, setNearbyOrders] = useState<Order[]>([])
   const [instructions, setInstructions] = useState<string[]>([])
   const [isCollapsed, setIsCollapsed] = useState(false)
 

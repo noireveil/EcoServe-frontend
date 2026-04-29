@@ -19,7 +19,6 @@ import {
   Smartphone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Modal } from "@/components/ui/modal"
@@ -28,6 +27,20 @@ import { useToast } from "@/hooks/useToast"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { LanguageToggle } from "@/components/ui/language-toggle"
 import { logout } from "@/lib/logout"
+import Image from "next/image"
+import type { Order, Device } from "@/types"
+
+interface MenuItem {
+  icon: React.ComponentType<{ className?: string }> | null
+  label: string
+  href?: string
+  onClick?: () => void
+  sublabel?: string
+  type?: string
+  showChevron?: boolean
+  value?: boolean
+  onChange?: (v: boolean) => void
+}
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading } = useAuth("customer")
@@ -48,12 +61,12 @@ export default function ProfilePage() {
   const [modalOpen, setModalOpen] = useState<"about" | "privacy" | "terms" | "edit" | "delete" | "logout" | "report" | null>(null)
   const { toasts, removeToast, toast } = useToast()
 
-  const completedOrders = orders.filter((o: any) => o.Status === "COMPLETED")
-  const totalCO2 = completedOrders.reduce((sum: number, o: any) => sum + (o.EWasteSavedKg || 0), 0)
+  const completedOrders = orders.filter((o: Order) => o.Status === "COMPLETED")
+  const totalCO2 = completedOrders.reduce((sum: number, o: Order) => sum + (o.EWasteSavedKg || 0), 0)
   const totalRepairs = completedOrders.length
   const eWasteSaved = devices
-    .filter((d: any) => (d.total_repairs || 0) > 0)
-    .reduce((sum: number, d: any) => sum + (d.WeightInKg || 0), 0)
+    .filter((d: Device) => (d.total_repairs || 0) > 0)
+    .reduce((sum: number, d: Device) => sum + (d.WeightInKg || 0), 0)
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -68,8 +81,8 @@ export default function ProfilePage() {
       if (error) throw error
       const { data } = supabase.storage.from("avatars").getPublicUrl(fileName)
       setEditForm(prev => ({ ...prev, profile_picture_url: data.publicUrl }))
-    } catch (err) {
-      console.error("Upload error:", err)
+    } catch (_err) {
+      console.error("Upload error:", _err)
     } finally {
       setIsUploading(false)
     }
@@ -96,7 +109,7 @@ export default function ProfilePage() {
       })
       if (response.ok) {
         const { setCachedUser } = await import("@/lib/auth-cache")
-        setCachedUser({ ...user, FullName: editForm.full_name })
+        setCachedUser({ ...user!, FullName: editForm.full_name })
         setModalOpen(null)
         toast.success("Profile updated", "Your changes have been saved.")
         setTimeout(() => window.location.reload(), 1500)
@@ -104,7 +117,7 @@ export default function ProfilePage() {
         const data = await response.json()
         toast.error("Update failed", data.message || "Could not save your changes.")
       }
-    } catch (err) {
+    } catch {
       toast.error("Update failed", "Something went wrong. Please try again.")
     } finally {
       setIsSaving(false)
@@ -126,7 +139,7 @@ export default function ProfilePage() {
         toast.error("Delete failed", "Could not delete your account. Please try again.")
         setModalOpen(null)
       }
-    } catch (err) {
+    } catch {
       toast.error("Delete failed", "Something went wrong. Please try again.")
       setModalOpen(null)
     }
@@ -172,9 +185,12 @@ export default function ProfilePage() {
             className="flex flex-col items-center text-center space-y-4"
           >
             {user?.ProfilePictureURL ? (
-              <img
+              <Image
                 src={user.ProfilePictureURL}
                 alt={user.FullName}
+                width={80}
+                height={80}
+                unoptimized
                 className="w-20 h-20 rounded-full object-cover border-2 border-primary"
               />
             ) : (
@@ -245,7 +261,7 @@ export default function ProfilePage() {
               <div className="space-y-2">
                 {section === "Preferences" && <ThemeToggle />}
                 {section === "Preferences" && <LanguageToggle />}
-                {items.map((item: any, itemIndex) => {
+                {items.map((item: MenuItem, itemIndex) => {
                   if (item.type === "toggle") {
                     return (
                       <div key={item.label}>
@@ -428,9 +444,12 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Profile Picture</label>
             {editForm.profile_picture_url && (
-              <img
+              <Image
                 src={editForm.profile_picture_url}
                 alt="Preview"
+                width={80}
+                height={80}
+                unoptimized
                 className="w-20 h-20 rounded-full object-cover border-2 border-primary mx-auto"
               />
             )}

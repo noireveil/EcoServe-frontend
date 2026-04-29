@@ -1,11 +1,15 @@
 "use client"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Smartphone, Laptop,
-         Zap, Calendar, Weight, Wrench,
-         Leaf } from "lucide-react"
+import { ArrowLeft, Smartphone, Laptop, Zap, Calendar, Weight, Leaf } from "lucide-react"
 import useSWR from "swr"
 import { fetcher } from "@/lib/fetcher"
 import { useAuth } from "@/hooks/useAuth"
+
+function CategoryIcon({ category, className }: { category: string; className?: string }) {
+  if (category === "Smartphone") return <Smartphone className={className} />
+  if (category === "Laptop") return <Laptop className={className} />
+  return <Zap className={className} />
+}
 
 export default function DeviceDetailPage() {
   const { isLoading: authLoading } = useAuth("customer")
@@ -36,14 +40,6 @@ export default function DeviceDetailPage() {
     )
   }
 
-  const getCategoryIcon = (category: string) => {
-    if (category === "Smartphone") return Smartphone
-    if (category === "Laptop") return Laptop
-    return Zap
-  }
-
-  const Icon = getCategoryIcon(device.Category)
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -65,7 +61,7 @@ export default function DeviceDetailPage() {
           <div className="flex items-center gap-4 mb-4">
             <div className="w-14 h-14 rounded-xl bg-white/20
                             flex items-center justify-center">
-              <Icon className="w-8 h-8 text-white" />
+              <CategoryIcon category={device.Category} className="w-8 h-8 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold">{device.BrandName}</h2>

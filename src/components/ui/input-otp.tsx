@@ -12,21 +12,6 @@ const InputOTP = React.forwardRef<HTMLDivElement, InputOTPProps>(
   ({ maxLength, value, onChange, children }, ref) => {
     const inputRef = React.useRef<HTMLInputElement>(null)
 
-    const handleChange = (index: number, digit: string) => {
-      const newValue = value.split("")
-      newValue[index] = digit
-      const result = newValue.join("").slice(0, maxLength)
-      onChange?.(result)
-
-      // Auto focus next slot
-      if (digit && index < maxLength - 1) {
-        const nextInput = inputRef.current?.parentElement?.querySelector(
-          `[data-index="${index + 1}"]`
-        ) as HTMLInputElement
-        nextInput?.focus()
-      }
-    }
-
     return (
       <div ref={ref} className="flex items-center gap-2">
         <input

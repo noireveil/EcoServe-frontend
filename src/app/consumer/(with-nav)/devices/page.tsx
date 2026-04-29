@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/modal'
 import { ToastNotification } from '@/components/ui/toast-notification'
 import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils'
+import type { Order, Device } from '@/types'
 
 const categoryMap: Record<string, string> = {
   'Smartphone': 'Smartphone',
@@ -70,9 +71,9 @@ export default function MyDevicesPage() {
     weight_in_kg: 0,
   })
 
-  const completedOrders = (orders || []).filter((o: any) => o.Status === "COMPLETED")
-  const totalRepairs = (devices || []).reduce((sum: number, d: any) => sum + (d.total_repairs || 0), 0)
-  const totalCO2Saved = completedOrders.reduce((sum: number, o: any) => sum + (o.EWasteSavedKg || 0), 0).toFixed(1)
+  const completedOrders = (orders || []).filter((o: Order) => o.Status === "COMPLETED")
+  const totalRepairs = (devices || []).reduce((sum: number, d: Device) => sum + (d.total_repairs || 0), 0)
+  const totalCO2Saved = completedOrders.reduce((sum: number, o: Order) => sum + (o.EWasteSavedKg || 0), 0).toFixed(1)
 
   const handleDeleteDevice = async (deviceId: string) => {
     try {
@@ -88,7 +89,7 @@ export default function MyDevicesPage() {
         toast.error("Delete failed", "Could not remove the device. Please try again.")
         setDeleteConfirmId(null)
       }
-    } catch (err) {
+    } catch {
       toast.error("Delete failed", "Something went wrong. Please try again.")
       setDeleteConfirmId(null)
     }
@@ -116,7 +117,7 @@ export default function MyDevicesPage() {
       } else {
         toast.error("Add failed", "Could not add the device. Please try again.")
       }
-    } catch (err) {
+    } catch {
       toast.error("Add failed", "Something went wrong. Please try again.")
     } finally {
       setIsSubmitting(false)
@@ -180,7 +181,7 @@ export default function MyDevicesPage() {
               {/* Device List */}
               <div className="space-y-3">
                 <AnimatePresence>
-                  {(devices || []).map((device: any, index: number) => (
+                  {(devices || []).map((device: Device, index: number) => (
                     <motion.div
                       key={device.ID || device.id}
                       initial={{ opacity: 0, y: 20 }}

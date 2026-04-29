@@ -26,6 +26,8 @@ import { ToastNotification } from "@/components/ui/toast-notification"
 import { useToast } from "@/hooks/useToast"
 import { useAuth } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api"
+import Image from "next/image"
+import type { Order } from "@/types"
 
 export default function TechnicianDashboardPage() {
   const { user, isLoading: authLoading } = useAuth("technician")
@@ -85,9 +87,9 @@ export default function TechnicianDashboardPage() {
     }
   }, [user])
 
-  const incomingOrders = incomingRaw.filter((o: any) => !declinedOrders.includes(o.ID))
+  const incomingOrders = incomingRaw.filter((o: Order) => !declinedOrders.includes(o.ID))
 
-  const activeOrders = activeOrdersData.filter((o: any) =>
+  const activeOrders = activeOrdersData.filter((o: Order) =>
     o.Status === "PENDING" ||
     o.Status === "ACCEPTED" ||
     o.Status === "IN_PROGRESS"
@@ -111,6 +113,7 @@ export default function TechnicianDashboardPage() {
       }, 300)
     }, 5000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const currentTechTip = techTips[techTipIndex]
@@ -194,8 +197,12 @@ export default function TechnicianDashboardPage() {
               <div className="px-4 pb-4 -mt-8">
                 <div className="w-16 h-16 rounded-full border-4 border-card bg-primary/20 flex items-center justify-center mb-2">
                   {user?.ProfilePictureURL ? (
-                    <img
+                    <Image
                       src={user.ProfilePictureURL}
+                      alt={user?.FullName || "Profile"}
+                      width={64}
+                      height={64}
+                      unoptimized
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
@@ -321,7 +328,7 @@ export default function TechnicianDashboardPage() {
               </h2>
               <div className="space-y-3">
                 <AnimatePresence mode="popLayout">
-                  {incomingOrders.map((order) => (
+                  {incomingOrders.map((order: Order) => (
                     <motion.div
                       key={order.ID}
                       layout
@@ -412,7 +419,7 @@ export default function TechnicianDashboardPage() {
               </h2>
               {activeOrders.length > 0 ? (
                 <div className="space-y-3">
-                  {activeOrders.map((order) => (
+                  {activeOrders.map((order: Order) => (
                     <Card key={order.ID} className="bg-card border-border/50 overflow-hidden">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">

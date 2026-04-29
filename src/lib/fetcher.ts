@@ -1,10 +1,14 @@
 import { apiFetch } from "@/lib/api"
 
+interface ApiError extends Error {
+  status: number
+}
+
 export async function fetcher(path: string) {
   const response = await apiFetch(path)
 
   if (!response.ok) {
-    const error: any = new Error("API fetch failed")
+    const error = new Error("API fetch failed") as ApiError
     error.status = response.status
     throw error
   }

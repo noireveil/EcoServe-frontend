@@ -34,8 +34,8 @@ export function ImpactSection() {
 
         <div className="impact-foot">
           <p className="quote-line">
-            "Setiap perangkat yang diperbaiki adalah satu langkah menuju masa depan
-            yang lebih berkelanjutan."
+            &ldquo;Setiap perangkat yang diperbaiki adalah satu langkah menuju masa depan
+            yang lebih berkelanjutan.&rdquo;
           </p>
           <Link href="/auth" className="btn btn-primary">
             Bergabung sekarang<span className="arrow">→</span>

@@ -1,4 +1,6 @@
-const withPWA = require("next-pwa")({
+import { createRequire } from "module"
+const nodeRequire = createRequire(import.meta.url)
+const withPWA = nodeRequire("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
@@ -7,18 +9,7 @@ const withPWA = require("next-pwa")({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Menambahkan turbopack kosong agar Next.js 16 mengabaikan bentrok Webpack
   turbopack: {},
-  
-  // BYPASS ERROR TYPESCRIPT SAAT DEPLOY
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  
-  // BYPASS ERROR ESLINT SAAT DEPLOY
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 
   async rewrites() {
     return [
@@ -30,4 +21,4 @@ const nextConfig = {
   },
 }
 
-module.exports = withPWA(nextConfig)
+export default withPWA(nextConfig)

@@ -33,6 +33,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { LanguageToggle } from "@/components/ui/language-toggle"
 import { cn } from "@/lib/utils"
 import { logout } from "@/lib/logout"
+import Image from "next/image"
 
 export default function TechnicianProfilePage() {
   const { user, isLoading: authLoading } = useAuth("technician")
@@ -58,8 +59,8 @@ export default function TechnicianProfilePage() {
           const data = await response.json()
           setIsOnline(data.data?.is_available ?? false)
         }
-      } catch (err) {
-        console.error("Failed to fetch availability:", err)
+      } catch (_err) {
+        console.error("Failed to fetch availability:", _err)
       }
     }
     fetchAvailability()
@@ -87,8 +88,8 @@ export default function TechnicianProfilePage() {
       if (error) throw error
       const { data } = supabase.storage.from("avatars").getPublicUrl(fileName)
       setEditForm(prev => ({ ...prev, profile_picture_url: data.publicUrl }))
-    } catch (err) {
-      console.error("Upload error:", err)
+    } catch (_err) {
+      console.error("Upload error:", _err)
     } finally {
       setIsUploading(false)
     }
@@ -115,7 +116,7 @@ export default function TechnicianProfilePage() {
       })
       if (response.ok) {
         const { setCachedUser } = await import("@/lib/auth-cache")
-        setCachedUser({ ...user, FullName: editForm.full_name })
+        setCachedUser({ ...user!, FullName: editForm.full_name })
         setModalOpen(null)
         toast.success("Profile updated", "Your changes have been saved.")
         setTimeout(() => window.location.reload(), 1500)
@@ -123,7 +124,7 @@ export default function TechnicianProfilePage() {
         const data = await response.json()
         toast.error("Update failed", data.message || "Could not save your changes.")
       }
-    } catch (err) {
+    } catch {
       toast.error("Update failed", "Something went wrong. Please try again.")
     } finally {
       setIsSaving(false)
@@ -145,7 +146,7 @@ export default function TechnicianProfilePage() {
         toast.error("Delete failed", "Could not delete your account. Please try again.")
         setModalOpen(null)
       }
-    } catch (err) {
+    } catch {
       toast.error("Delete failed", "Something went wrong. Please try again.")
       setModalOpen(null)
     }
@@ -169,8 +170,8 @@ export default function TechnicianProfilePage() {
         const data = await response.json()
         toast.error("Failed to update status", data.message || "Please try again")
       }
-    } catch (err) {
-      console.error("Toggle availability error:", err)
+    } catch (_err) {
+      console.error("Toggle availability error:", _err)
       toast.error("Failed to update status", "Please try again")
     } finally {
       setIsTogglingAvailability(false)
@@ -206,9 +207,12 @@ export default function TechnicianProfilePage() {
           <motion.div variants={itemVariants} className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {user?.ProfilePictureURL ? (
-                <img
+                <Image
                   src={user.ProfilePictureURL}
                   alt={user.FullName}
+                  width={64}
+                  height={64}
+                  unoptimized
                   className="w-16 h-16 rounded-full object-cover border-2 border-primary"
                 />
               ) : (
@@ -477,9 +481,12 @@ export default function TechnicianProfilePage() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Profile Picture</label>
             {editForm.profile_picture_url && (
-              <img
+              <Image
                 src={editForm.profile_picture_url}
                 alt="Preview"
+                width={80}
+                height={80}
+                unoptimized
                 className="w-20 h-20 rounded-full object-cover border-2 border-primary mx-auto"
               />
             )}

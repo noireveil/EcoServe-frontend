@@ -15,6 +15,7 @@ import { ToastNotification } from "@/components/ui/toast-notification"
 import { useToast } from "@/hooks/useToast"
 import { ChatDrawer } from "@/components/ui/chat-drawer"
 import { cn } from "@/lib/utils"
+import type { Order } from "@/types"
 
 type Tab = "active" | "completed" | "all"
 
@@ -33,13 +34,12 @@ export default function TechnicianOrdersPage() {
   const [photoUrl, setPhotoUrl] = useState("")
   const [serviceFee, setServiceFee] = useState<number>(0)
 
-  const handleNavigate = (order: any) => {
+  const handleNavigate = (order: Order) => {
     router.push(`/technician/map?lat=${order.CustomerLatitude}&lng=${order.CustomerLongitude}&orderId=${order.ID}`)
   }
 
   const handlePhotoUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    _orderId: string
+    e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -70,7 +70,7 @@ export default function TechnicianOrdersPage() {
     }
   }
 
-  const handleCancel = async (orderId: string) => {
+  const handleCancel = async () => {
     try {
       await mutateOrders()
       toast.success("Order cancelled", "The order has been removed.")
@@ -79,7 +79,7 @@ export default function TechnicianOrdersPage() {
     }
   }
 
-  const handleComplete = async (order: any) => {
+  const handleComplete = async (order: Order) => {
     if (!photoUrl) {
       toast.warning("Photo required", "Upload a photo for anti-fraud verification.")
       return
@@ -141,11 +141,11 @@ export default function TechnicianOrdersPage() {
     }
   }
 
-  const pendingJobs = orders.filter((o: any) => o.Status === "PENDING")
-  const acceptedJobs = orders.filter((o: any) =>
+  const pendingJobs = orders.filter((o: Order) => o.Status === "PENDING")
+  const acceptedJobs = orders.filter((o: Order) =>
     o.Status === "ACCEPTED" || o.Status === "IN_PROGRESS"
   )
-  const completedJobs = orders.filter((o: any) => o.Status === "COMPLETED")
+  const completedJobs = orders.filter((o: Order) => o.Status === "COMPLETED")
 
   if (authLoading || ordersLoading) {
     return (
@@ -206,7 +206,7 @@ export default function TechnicianOrdersPage() {
                 {/* Pending Acceptance Section */}
                 <div className="space-y-3">
                   <h2 className="text-sm font-semibold text-muted-foreground">Pending Acceptance</h2>
-                  {pendingJobs.length > 0 ? pendingJobs.map((order) => (
+                  {pendingJobs.length > 0 ? pendingJobs.map((order: Order) => (
                     <Card key={order.ID} className="border-border/50 bg-card/50 p-4">
                       <div className="flex items-start justify-between mb-3">
                         <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/50">Pending</Badge>
@@ -240,7 +240,7 @@ export default function TechnicianOrdersPage() {
                           variant="outline"
                           size="sm"
                           className="text-xs text-destructive border-destructive/50 hover:bg-destructive/10"
-                          onClick={() => handleCancel(order.ID)}
+                          onClick={() => handleCancel()}
                         >
                           <Trash2 size={14} className="mr-1" />
                           Cancel
@@ -255,7 +255,7 @@ export default function TechnicianOrdersPage() {
                 {/* In Progress Section */}
                 <div className="space-y-3">
                   <h2 className="text-sm font-semibold text-muted-foreground">In Progress</h2>
-                  {acceptedJobs.length > 0 ? acceptedJobs.map((order) => (
+                  {acceptedJobs.length > 0 ? acceptedJobs.map((order: Order) => (
                     <Card key={order.ID} className="border-border/50 bg-card/50 p-4">
                       <div className="flex items-start justify-between mb-3">
                         <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/50">
@@ -295,7 +295,7 @@ export default function TechnicianOrdersPage() {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => handlePhotoUpload(e, order.ID)}
+                            onChange={(e) => handlePhotoUpload(e)}
                           />
                         </label>
                       </div>
@@ -356,7 +356,7 @@ export default function TechnicianOrdersPage() {
                 transition={{ duration: 0.2 }}
                 className="space-y-3"
               >
-                {completedJobs.length > 0 ? completedJobs.map((order) => (
+                {completedJobs.length > 0 ? completedJobs.map((order: Order) => (
                   <Card
                     key={order.ID}
                     className="border-border/50 bg-card/50 p-4 hover:bg-card/80 transition-colors"
@@ -435,7 +435,7 @@ export default function TechnicianOrdersPage() {
                             <Button size="sm" className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => handleAccept(order.ID)}>
                               <CheckCircle size={14} className="mr-1" />Accept Order
                             </Button>
-                            <Button variant="outline" size="sm" className="text-xs text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => handleCancel(order.ID)}>
+                            <Button variant="outline" size="sm" className="text-xs text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => handleCancel()}>
                               <Trash2 size={14} className="mr-1" />Cancel
                             </Button>
                           </div>
@@ -448,7 +448,7 @@ export default function TechnicianOrdersPage() {
                               <label className="flex items-center justify-center gap-1 py-2 rounded-lg border border-border text-sm cursor-pointer hover:bg-secondary/50">
                                 <Camera className="w-4 h-4" />
                                 {photoUrl ? "Photo Ready ✓" : "Upload Photo"}
-                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, order.ID)} />
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e)} />
                               </label>
                             </div>
                             <input
@@ -482,7 +482,7 @@ export default function TechnicianOrdersPage() {
                   <h2 className="text-sm font-semibold text-muted-foreground mb-3 mt-6">Completed</h2>
                   {completedJobs.length > 0 ? (
                     <div className="space-y-3">
-                      {completedJobs.map((order) => (
+                      {completedJobs.map((order: Order) => (
                         <Card
                           key={order.ID}
                           className="border-border/50 bg-card/50 p-4 hover:bg-card/80 transition-colors"

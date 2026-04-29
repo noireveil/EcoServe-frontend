@@ -140,8 +140,8 @@ export function AuthForm() {
 
       setCountdown(60)
       setShowOtpInput(true)
-    } catch (err: any) {
-      setError(err.message || "Failed to send OTP. Please try again.")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to send OTP. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -224,7 +224,7 @@ export function AuthForm() {
           try {
             const errJson = JSON.parse(errText)
             errorMessage = errJson.error || errJson.message || errorMessage
-          } catch (e) {
+          } catch {
             errorMessage = errText || errorMessage
           }
           throw new Error(errorMessage)
@@ -259,9 +259,9 @@ export function AuthForm() {
         window.location.href = "/consumer/dashboard"
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.log("Error caught:", err)
-      setError(err.message || "Invalid OTP. Please try again.")
+      setError(err instanceof Error ? err.message : "Invalid OTP. Please try again.")
     } finally {
       setIsLoading(false)
     }
